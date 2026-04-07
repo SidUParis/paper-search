@@ -86,7 +86,8 @@ def add_topic(slug, name, keywords, arxiv_queries, acl_db, acl_ds, arxiv_db, arx
 @click.option("--source", type=click.Choice(["both", "acl", "arxiv"]), default="both")
 @click.option("--max-results", default=20, help="Max papers per source/query")
 @click.option("--no-notion", is_flag=True, help="Skip Notion sync")
-def update(topic_slug: str, source: str, max_results: int, no_notion: bool):
+@click.option("--summarize/--no-summarize", default=True, help="AI-summarize new papers (default: on)")
+def update(topic_slug: str, source: str, max_results: int, no_notion: bool, summarize: bool):
     """Search and sync papers for a topic. Safe to run daily (deduplicates).
 
     \b
@@ -182,7 +183,80 @@ def update(topic_slug: str, source: str, max_results: int, no_notion: bool):
             errors = len([r for r in results if "error" in r])
             console.print(f"  arxiv -> Notion: [green]+{added}[/green] new, {skipped} existing, [red]{errors} errors[/red]")
 
+    # ── AI Summarization ──
+    if summarize and not no_notion:
+        console.print("[dim]Generating AI summaries for unsummarized papers...[/dim]")
+        from paper_search.summarizer import summarize_papers_in_notion
+
+        for ds_label, ds_id, db_id in [
+            ("ACL", topic["acl_data_source_id"], topic["acl_database_id"]),
+            ("arxiv", topic["arxiv_data_source_id"], topic["arxiv_database_id"]),
+        ]:
+            count = 0
+            errors = 0
+            for event in summarize_papers_in_notion(ds_id, db_id):
+                if "total" in event:
+                    # final stats
+                    break
+                if event.get("status") == "done":
+                    count += 1
+                    console.print(f"  [green]✓[/green] {event['title'][:70]}")
+                elif event.get("status") == "error":
+                    errors += 1
+                    console.print(f"  [red]✗[/red] {event['title'][:70]}: {event.get('error', '')[:50]}")
+            if count or errors:
+                console.print(f"  {ds_label}: [green]{count} summarized[/green], [red]{errors} errors[/red]")
+            else:
+                console.print(f"  {ds_label}: all papers already summarized")
+
     console.print(f"\n[bold]Done.[/bold] {len(all_papers)} papers processed.")
+
+
+# ── Standalone summarize command ──────────────────────────────────
+
+@main.command()
+@click.argument("topic_slug")
+@click.option("--source", type=click.Choice(["both", "acl", "arxiv"]), default="both")
+def summarize(topic_slug: str, source: str):
+    """Generate AI summaries for papers that don't have one yet.
+
+    \b
+    Examples:
+        paper-search summarize bias-fairness
+        paper-search summarize conv-summarization --source acl
+    """
+    from paper_search.topics import get_topic
+    from paper_search.summarizer import summarize_papers_in_notion
+
+    topic = get_topic(topic_slug)
+    if not topic:
+        console.print(f"[red]Topic '{topic_slug}' not found. Run: paper-search topics[/red]")
+        return
+
+    console.print(Panel(f"[bold]Summarizing: {topic['name']}[/bold]", style="magenta"))
+
+    sources = []
+    if source in ("both", "acl"):
+        sources.append(("ACL", topic["acl_data_source_id"], topic["acl_database_id"]))
+    if source in ("both", "arxiv"):
+        sources.append(("arxiv", topic["arxiv_data_source_id"], topic["arxiv_database_id"]))
+
+    for ds_label, ds_id, db_id in sources:
+        console.print(f"\n[bold]{ds_label}[/bold]")
+        count = 0
+        errors = 0
+        for event in summarize_papers_in_notion(ds_id, db_id):
+            if "total" in event:
+                console.print(f"  Total in database: {event['total']}, skipped: {event['skipped']}")
+                break
+            if event.get("status") == "done":
+                count += 1
+                console.print(f"  [green]✓[/green] {event['title'][:70]}")
+            elif event.get("status") == "error":
+                errors += 1
+                console.print(f"  [red]✗[/red] {event['title'][:70]}: {event.get('error', '')[:60]}")
+
+        console.print(f"  [bold]{count} summarized, {errors} errors[/bold]")
 
 
 # ── Quick search (no topic needed) ────────────────────────────────
