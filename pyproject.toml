@@ -1,0 +1,24 @@
+[project]
+name = "paper-search"
+version = "0.1.0"
+description = "AI-powered research paper discovery from arxiv and ACL Anthology"
+requires-python = ">=3.10"
+dependencies = [
+    "openai>=1.0",
+    "arxiv>=2.0",
+    "acl-anthology>=0.5",
+    "python-dotenv>=1.0",
+    "rich>=13.0",
+    "click>=8.0",
+    "notion-client>=2.0",
+]
+
+[project.scripts]
+paper-search = "paper_search.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["paper_search*"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
