@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 import os
-import sys
+import time
 import click
 from dotenv import load_dotenv
 from rich.console import Console
 from rich.panel import Panel
+from rich.table import Table
 from rich.markdown import Markdown
 
-# Load .env from project root
 load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env"))
 
 console = Console()
@@ -22,43 +22,178 @@ def main():
     pass
 
 
+# ── Topic management ──────────────────────────────────────────────
+
 @main.command()
-@click.argument("query", nargs=-1, required=True)
-@click.option("--model", default=None, help="OpenRouter model (default: qwen/qwen3.6-plus:free)")
-@click.option("--no-notion", is_flag=True, help="Skip Notion sync")
-@click.option("--max-results", default=20, help="Max papers per source")
-def search(query: tuple[str, ...], model: str, no_notion: bool, max_results: int):
-    """Search for papers using the AI agent.
+def topics():
+    """List all configured research topics."""
+    from paper_search.topics import list_topics
 
-    Example: paper-search search transformer attention mechanism
+    all_topics = list_topics()
+    if not all_topics:
+        console.print("[yellow]No topics configured. Add one with: paper-search add-topic[/yellow]")
+        return
+
+    table = Table(title="Research Topics")
+    table.add_column("Slug", style="bold")
+    table.add_column("Name")
+    table.add_column("Keywords")
+    table.add_column("Created")
+
+    for slug, cfg in all_topics:
+        kw = ", ".join(cfg["keywords"][:4])
+        if len(cfg["keywords"]) > 4:
+            kw += "..."
+        table.add_row(slug, cfg["name"], kw, cfg.get("created", "?"))
+
+    console.print(table)
+
+
+@main.command("add-topic")
+@click.argument("slug")
+@click.argument("name")
+@click.option("--keywords", "-k", required=True, help="Comma-separated search keywords")
+@click.option("--arxiv-queries", "-q", required=True, help="Comma-separated arxiv queries")
+@click.option("--acl-db", required=True, help="Notion ACL database ID")
+@click.option("--acl-ds", required=True, help="Notion ACL data source ID")
+@click.option("--arxiv-db", required=True, help="Notion arxiv database ID")
+@click.option("--arxiv-ds", required=True, help="Notion arxiv data source ID")
+def add_topic(slug, name, keywords, arxiv_queries, acl_db, acl_ds, arxiv_db, arxiv_ds):
+    """Register a new research topic.
+
+    Example:
+        paper-search add-topic sycophancy "Sycophancy in LLMs" \\
+            -k "sycophancy,sycophantic,people-pleasing" \\
+            -q "sycophancy LLM,sycophantic behavior language model" \\
+            --acl-db ABC123 --acl-ds DEF456 --arxiv-db GHI789 --arxiv-ds JKL012
     """
-    query_str = " ".join(query)
-    console.print(Panel(f"[bold]Searching:[/bold] {query_str}", style="blue"))
+    from paper_search.topics import add_topic as _add
 
-    from paper_search.agent import PaperAgent, _status_callback
-    import paper_search.agent as agent_mod
+    topic = _add(
+        slug=slug, name=name,
+        keywords=[k.strip() for k in keywords.split(",")],
+        arxiv_queries=[q.strip() for q in arxiv_queries.split(",")],
+        acl_database_id=acl_db, acl_data_source_id=acl_ds,
+        arxiv_database_id=arxiv_db, arxiv_data_source_id=arxiv_ds,
+    )
+    console.print(f"[green]Added topic:[/green] {topic['name']} ({slug})")
 
-    agent_mod._status_callback = lambda msg: console.print(f"[dim]{msg}[/dim]")
 
-    agent = PaperAgent(model=model)
+# ── Main update command ───────────────────────────────────────────
 
-    prompt = f"Find papers about: {query_str}. Max {max_results} results per source."
-    if no_notion:
-        prompt += " Do NOT sync to Notion (set sync_notion=false in save_results)."
+@main.command()
+@click.argument("topic_slug")
+@click.option("--source", type=click.Choice(["both", "acl", "arxiv"]), default="both")
+@click.option("--max-results", default=20, help="Max papers per source/query")
+@click.option("--no-notion", is_flag=True, help="Skip Notion sync")
+def update(topic_slug: str, source: str, max_results: int, no_notion: bool):
+    """Search and sync papers for a topic. Safe to run daily (deduplicates).
 
-    result = agent.chat(prompt)
-    console.print()
-    console.print(Markdown(result))
+    \b
+    Examples:
+        paper-search update bias-fairness
+        paper-search update conv-summarization --source arxiv
+        paper-search update bias-fairness --no-notion
+    """
+    from paper_search.topics import get_topic
+    from paper_search.arxiv_source import search_arxiv
+    from paper_search.acl_source import search_acl_by_venue
+    from paper_search.notion_sync import sync_acl_papers, sync_arxiv_papers
+    from paper_search.markdown import papers_to_markdown, save_markdown
 
+    topic = get_topic(topic_slug)
+    if not topic:
+        console.print(f"[red]Topic '{topic_slug}' not found. Run: paper-search topics[/red]")
+        return
+
+    console.print(Panel(f"[bold]{topic['name']}[/bold]", style="blue"))
+
+    seen = set()
+    acl_papers = []
+    arxiv_papers = []
+
+    # ── ACL search ──
+    if source in ("both", "acl"):
+        console.print("[dim]Searching ACL Anthology...[/dim]")
+        for year in topic.get("acl_years", [2025, 2026]):
+            for venue in topic.get("acl_venues", []):
+                papers = search_acl_by_venue(
+                    venue, year=year, max_results=max_results,
+                    keywords=topic["keywords"],
+                )
+                for p in papers:
+                    key = p.title.lower().strip()
+                    if key not in seen:
+                        seen.add(key)
+                        acl_papers.append(p)
+
+        console.print(f"  [bold]{len(acl_papers)}[/bold] ACL papers found")
+
+    # ── arxiv search ──
+    if source in ("both", "arxiv"):
+        console.print("[dim]Searching arxiv...[/dim]")
+        for query in topic.get("arxiv_queries", []):
+            console.print(f"  [dim]{query}[/dim]")
+            try:
+                papers = search_arxiv(query, max_results=max_results)
+                for p in papers:
+                    key = p.title.lower().strip()
+                    if key not in seen:
+                        seen.add(key)
+                        arxiv_papers.append(p)
+                time.sleep(3)
+            except Exception as e:
+                console.print(f"  [yellow]Error: {e}[/yellow]")
+                time.sleep(10)
+
+        console.print(f"  [bold]{len(arxiv_papers)}[/bold] arxiv papers found")
+
+    # ── Save markdown ──
+    all_papers = acl_papers + arxiv_papers
+    if all_papers:
+        md = papers_to_markdown(all_papers, topic["name"])
+        slug = topic_slug.replace(" ", "_")
+        path = save_markdown(md, f"{slug}_latest.md")
+        console.print(f"[green]Markdown: {path}[/green]")
+
+    # ── Notion sync ──
+    if not no_notion and all_papers:
+        console.print("[dim]Syncing to Notion...[/dim]")
+
+        if acl_papers:
+            results = sync_acl_papers(
+                acl_papers,
+                topic["acl_database_id"],
+                topic["acl_data_source_id"],
+            )
+            added = len([r for r in results if "notion_url" in r])
+            skipped = len([r for r in results if "skipped" in r])
+            errors = len([r for r in results if "error" in r])
+            console.print(f"  ACL -> Notion: [green]+{added}[/green] new, {skipped} existing, [red]{errors} errors[/red]")
+
+        if arxiv_papers:
+            results = sync_arxiv_papers(
+                arxiv_papers,
+                topic["arxiv_database_id"],
+                topic["arxiv_data_source_id"],
+            )
+            added = len([r for r in results if "notion_url" in r])
+            skipped = len([r for r in results if "skipped" in r])
+            errors = len([r for r in results if "error" in r])
+            console.print(f"  arxiv -> Notion: [green]+{added}[/green] new, {skipped} existing, [red]{errors} errors[/red]")
+
+    console.print(f"\n[bold]Done.[/bold] {len(all_papers)} papers processed.")
+
+
+# ── Quick search (no topic needed) ────────────────────────────────
 
 @main.command()
 @click.argument("source", type=click.Choice(["arxiv", "acl", "both"]), default="both")
 @click.argument("query", nargs=-1, required=True)
 @click.option("--max-results", default=20, help="Max papers to return")
 @click.option("--save/--no-save", default=True, help="Save markdown report")
-@click.option("--notion/--no-notion", default=True, help="Sync to Notion")
-def quick(source: str, query: tuple[str, ...], max_results: int, save: bool, notion: bool):
-    """Quick search without the AI agent — direct source query.
+def quick(source: str, query: tuple[str, ...], max_results: int, save: bool):
+    """Quick search without topic config — direct source query.
 
     Example: paper-search quick both "large language models"
     """
@@ -70,17 +205,18 @@ def quick(source: str, query: tuple[str, ...], max_results: int, save: bool, not
     if source in ("arxiv", "both"):
         console.print("[dim]Searching arxiv...[/dim]")
         from paper_search.arxiv_source import search_arxiv
-        papers.extend(search_arxiv(query_str, max_results))
+        try:
+            papers.extend(search_arxiv(query_str, max_results))
+        except Exception as e:
+            console.print(f"[yellow]arxiv error: {e}[/yellow]")
 
     if source in ("acl", "both"):
         console.print("[dim]Searching ACL Anthology...[/dim]")
         from paper_search.acl_source import search_acl
         try:
             papers.extend(search_acl(query_str, max_results))
-        except ImportError as e:
-            console.print(f"[yellow]ACL Anthology not available: {e}[/yellow]")
         except Exception as e:
-            console.print(f"[yellow]ACL search error: {e}[/yellow]")
+            console.print(f"[yellow]ACL error: {e}[/yellow]")
 
     console.print(f"\n[bold]{len(papers)} papers found[/bold]\n")
 
@@ -88,7 +224,6 @@ def quick(source: str, query: tuple[str, ...], max_results: int, save: bool, not
         console.print(f"[bold]{i}.[/bold] {p.title}")
         console.print(f"   [dim]{', '.join(p.authors[:3])}{'...' if len(p.authors) > 3 else ''}[/dim]")
         console.print(f"   [blue]{p.url}[/blue]")
-        console.print(f"   [dim]{p.source} | {p.published.strftime('%Y-%m-%d') if p.published else 'N/A'}[/dim]")
         console.print()
 
     if save and papers:
@@ -97,53 +232,28 @@ def quick(source: str, query: tuple[str, ...], max_results: int, save: bool, not
         path = save_markdown(md)
         console.print(f"[green]Saved to {path}[/green]")
 
-    if notion and papers:
-        try:
-            from paper_search.notion_sync import sync_papers_to_notion
-            results = sync_papers_to_notion(papers)
-            synced = len([r for r in results if "error" not in r])
-            console.print(f"[green]Synced {synced}/{len(papers)} to Notion[/green]")
-        except Exception as e:
-            console.print(f"[yellow]Notion sync skipped: {e}[/yellow]")
 
+# ── AI agent search ───────────────────────────────────────────────
 
 @main.command()
-@click.option("--category", default="cs.CL", help="arxiv category")
-@click.option("--max-results", default=30, help="Max papers")
-@click.option("--save/--no-save", default=True, help="Save markdown report")
-@click.option("--notion/--no-notion", default=True, help="Sync to Notion")
-def recent(category: str, max_results: int, save: bool, notion: bool):
-    """Get recent papers from an arxiv category.
+@click.argument("query", nargs=-1, required=True)
+@click.option("--model", default=None, help="OpenRouter model (default: qwen/qwen3.6-plus:free)")
+def search(query: tuple[str, ...], model: str):
+    """Search for papers using the AI agent.
 
-    Example: paper-search recent --category cs.CL
+    Example: paper-search search transformer attention mechanism
     """
-    console.print(Panel(f"[bold]Recent papers:[/bold] {category}", style="cyan"))
+    query_str = " ".join(query)
+    console.print(Panel(f"[bold]AI Search:[/bold] {query_str}", style="blue"))
 
-    from paper_search.arxiv_source import search_arxiv_recent
-    papers = search_arxiv_recent(category, max_results=max_results)
+    from paper_search.agent import PaperAgent
+    import paper_search.agent as agent_mod
 
-    console.print(f"\n[bold]{len(papers)} recent papers[/bold]\n")
-
-    for i, p in enumerate(papers, 1):
-        console.print(f"[bold]{i}.[/bold] {p.title}")
-        console.print(f"   [dim]{', '.join(p.authors[:3])}{'...' if len(p.authors) > 3 else ''}[/dim]")
-        console.print(f"   [dim]{p.published.strftime('%Y-%m-%d') if p.published else 'N/A'}[/dim]")
-        console.print()
-
-    if save and papers:
-        from paper_search.markdown import papers_to_markdown, save_markdown
-        md = papers_to_markdown(papers, f"Recent: {category}")
-        path = save_markdown(md)
-        console.print(f"[green]Saved to {path}[/green]")
-
-    if notion and papers:
-        try:
-            from paper_search.notion_sync import sync_papers_to_notion
-            results = sync_papers_to_notion(papers)
-            synced = len([r for r in results if "error" not in r])
-            console.print(f"[green]Synced {synced}/{len(papers)} to Notion[/green]")
-        except Exception as e:
-            console.print(f"[yellow]Notion sync skipped: {e}[/yellow]")
+    agent_mod._status_callback = lambda msg: console.print(f"[dim]{msg}[/dim]")
+    agent = PaperAgent(model=model)
+    result = agent.chat(f"Find papers about: {query_str}")
+    console.print()
+    console.print(Markdown(result))
 
 
 if __name__ == "__main__":

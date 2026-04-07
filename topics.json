@@ -1,0 +1,35 @@
+{
+  "bias-fairness": {
+    "name": "Bias & Fairness in LLMs",
+    "keywords": ["social bias", "bbq", "bias benchmark", "stereotyp", "debias", "gender bias", "racial bias", "fairness"],
+    "acl_database_id": "681c5e0e039a446f8d3224a8a70fe5f9",
+    "acl_data_source_id": "3d43ef78-5f47-4ae1-9f31-fe5b382b680f",
+    "arxiv_database_id": "e9b153737d79435e8aa23721899e0ba0",
+    "arxiv_data_source_id": "31ff8b2a-3ee1-430a-9edc-dac225acadcf",
+    "arxiv_queries": [
+      "social bias large language model",
+      "BBQ bias benchmark question answering",
+      "debiasing LLM fairness stereotype",
+      "gender bias NLP language model"
+    ],
+    "acl_venues": ["acl", "eacl", "naacl", "emnlp", "findings", "coling"],
+    "acl_years": [2025, 2026],
+    "created": "2026-04-07"
+  },
+  "conv-summarization": {
+    "name": "Conversational Summarization",
+    "keywords": ["conversational summarization", "dialogue summarization", "dialog summarization", "meeting summarization"],
+    "acl_database_id": "4f4b67a13e3c4750bdba5de376269ca1",
+    "acl_data_source_id": "6f97fbf2-44dc-43be-8418-8f71ba4367cd",
+    "arxiv_database_id": "bd46ecc44f3e4a8ab3459d8c860c51c8",
+    "arxiv_data_source_id": "9ce7babc-fe4e-4d47-a0ce-d34285372049",
+    "arxiv_queries": [
+      "conversational summarization dialogue",
+      "meeting summarization abstractive",
+      "dialogue summarization LLM"
+    ],
+    "acl_venues": ["acl", "eacl", "naacl", "emnlp", "findings", "coling"],
+    "acl_years": [2025, 2026],
+    "created": "2026-04-07"
+  }
+}

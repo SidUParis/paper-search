@@ -27,16 +27,8 @@ def get_notion_client():
     return Client(auth=token)
 
 
-# data_source_id for each database (used by notion-client v3 data_sources.query)
-DATA_SOURCES = {
-    "681c5e0e039a446f8d3224a8a70fe5f9": "3d43ef78-5f47-4ae1-9f31-fe5b382b680f",  # ACL Research Papers
-    "e9b153737d79435e8aa23721899e0ba0": "31ff8b2a-3ee1-430a-9edc-dac225acadcf",  # arxiv Papers
-}
-
-
-def _get_existing_urls(client, database_id: str) -> set[str]:
-    """Fetch all existing paper URLs from a Notion database to avoid duplicates."""
-    data_source_id = DATA_SOURCES.get(database_id, database_id)
+def _get_existing_urls(client, data_source_id: str) -> set[str]:
+    """Fetch all existing paper URLs from a Notion data source to avoid duplicates."""
     urls = set()
     start_cursor = None
 
@@ -65,16 +57,10 @@ def _extract_arxiv_id(url: str) -> str:
     return match.group(1) if match else ""
 
 
-def sync_papers_to_notion(papers: list[Paper], database_id: str | None = None) -> list[dict]:
-    """Push papers to the Notion ACL 'Research Papers' database.
-
-    Skips papers whose URL already exists in the database.
-    Returns list of created/skipped page metadata.
-    """
+def sync_acl_papers(papers: list[Paper], database_id: str, data_source_id: str) -> list[dict]:
+    """Push ACL papers to a Notion database. Skips duplicates by URL."""
     client = get_notion_client()
-    db_id = database_id or os.environ.get("NOTION_DATABASE_ID", "681c5e0e039a446f8d3224a8a70fe5f9")
-
-    existing_urls = _get_existing_urls(client, db_id)
+    existing_urls = _get_existing_urls(client, data_source_id)
     results = []
 
     for paper in papers:
@@ -87,12 +73,9 @@ def sync_papers_to_notion(papers: list[Paper], database_id: str | None = None) -
             "Authors": {"rich_text": [{"text": {"content": ", ".join(paper.authors)[:2000]}}]},
             "URL": {"url": paper.url if paper.url else None},
             "Abstract": {"rich_text": [{"text": {"content": paper.abstract[:2000]}}]},
+            "Source": {"select": {"name": "ACL"}},
             "Status": {"select": {"name": "New"}},
         }
-
-        # ACL database has Source field
-        if paper.source == "ACL":
-            properties["Source"] = {"select": {"name": paper.source}}
 
         if paper.published:
             properties["Published"] = {
@@ -105,27 +88,19 @@ def sync_papers_to_notion(papers: list[Paper], database_id: str | None = None) -
             }
 
         try:
-            page = client.pages.create(
-                parent={"database_id": db_id},
-                properties=properties,
-            )
+            page = client.pages.create(parent={"database_id": database_id}, properties=properties)
             results.append({"title": paper.title, "notion_url": page["url"]})
-            existing_urls.add(paper.url)  # track within this run too
+            existing_urls.add(paper.url)
         except Exception as e:
             results.append({"title": paper.title, "error": str(e)})
 
     return results
 
 
-def sync_arxiv_to_notion(papers: list[Paper]) -> list[dict]:
-    """Push arxiv papers to the dedicated arxiv Notion database.
-
-    Skips papers whose URL already exists.
-    """
+def sync_arxiv_papers(papers: list[Paper], database_id: str, data_source_id: str) -> list[dict]:
+    """Push arxiv papers to a Notion database. Skips duplicates by URL."""
     client = get_notion_client()
-    db_id = os.environ.get("NOTION_ARXIV_DATABASE_ID", "e9b153737d79435e8aa23721899e0ba0")
-
-    existing_urls = _get_existing_urls(client, db_id)
+    existing_urls = _get_existing_urls(client, data_source_id)
     results = []
 
     for paper in papers:
@@ -152,7 +127,6 @@ def sync_arxiv_to_notion(papers: list[Paper]) -> list[dict]:
             }
 
         if paper.topics:
-            # Split into Categories (cs.XX) and Topics (semantic labels)
             categories = [t for t in paper.topics if t.startswith("cs.")]
             topics = [t for t in paper.topics if not t.startswith("cs.")]
             if categories:
@@ -165,13 +139,23 @@ def sync_arxiv_to_notion(papers: list[Paper]) -> list[dict]:
                 }
 
         try:
-            page = client.pages.create(
-                parent={"database_id": db_id},
-                properties=properties,
-            )
+            page = client.pages.create(parent={"database_id": database_id}, properties=properties)
             results.append({"title": paper.title, "notion_url": page["url"]})
             existing_urls.add(paper.url)
         except Exception as e:
             results.append({"title": paper.title, "error": str(e)})
 
     return results
+
+
+# Backwards-compatible wrappers using default (bias) database IDs
+def sync_papers_to_notion(papers: list[Paper], database_id: str | None = None) -> list[dict]:
+    db = database_id or os.environ.get("NOTION_DATABASE_ID", "681c5e0e039a446f8d3224a8a70fe5f9")
+    ds = "3d43ef78-5f47-4ae1-9f31-fe5b382b680f"
+    return sync_acl_papers(papers, db, ds)
+
+
+def sync_arxiv_to_notion(papers: list[Paper]) -> list[dict]:
+    db = os.environ.get("NOTION_ARXIV_DATABASE_ID", "e9b153737d79435e8aa23721899e0ba0")
+    ds = "31ff8b2a-3ee1-430a-9edc-dac225acadcf"
+    return sync_arxiv_papers(papers, db, ds)
