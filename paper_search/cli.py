@@ -24,7 +24,7 @@ def main():
 
 @main.command()
 @click.argument("query", nargs=-1, required=True)
-@click.option("--model", default="openrouter/auto", help="OpenRouter model to use")
+@click.option("--model", default=None, help="OpenRouter model (default: qwen/qwen3.6-plus:free)")
 @click.option("--no-notion", is_flag=True, help="Skip Notion sync")
 @click.option("--max-results", default=20, help="Max papers per source")
 def search(query: tuple[str, ...], model: str, no_notion: bool, max_results: int):

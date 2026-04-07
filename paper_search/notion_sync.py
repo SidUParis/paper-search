@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import os
 import json
+from dotenv import load_dotenv
 from paper_search.arxiv_source import Paper
+
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env"))
 
 
 def get_notion_client():

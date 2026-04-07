@@ -228,7 +228,7 @@ def _dict_to_paper(d: dict) -> Paper:
 class PaperAgent:
     """AI agent that orchestrates paper search using OpenRouter."""
 
-    def __init__(self, model: str = "openrouter/auto"):
+    def __init__(self, model: str | None = None):
         api_key = os.environ.get("OPENROUTER_API_KEY", "")
         if not api_key:
             raise ValueError("OPENROUTER_API_KEY not set in .env")
@@ -237,7 +237,7 @@ class PaperAgent:
             base_url="https://openrouter.ai/api/v1",
             api_key=api_key,
         )
-        self.model = model
+        self.model = model or os.environ.get("OPENROUTER_MODEL", "qwen/qwen3.6-plus:free")
         self.messages: list[dict] = [{"role": "system", "content": SYSTEM_PROMPT}]
 
     def chat(self, user_message: str, max_steps: int = 8) -> str:

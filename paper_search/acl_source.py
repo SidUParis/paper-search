@@ -2,79 +2,108 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from paper_search.arxiv_source import Paper
 
 
-def search_acl(query: str, max_results: int = 20) -> list[Paper]:
-    """Search ACL Anthology for papers matching the query.
+def _format_author(author) -> str:
+    """Extract a clean name string from an ACL Anthology author object."""
+    if hasattr(author, "first") and hasattr(author, "last"):
+        return f"{author.first} {author.last}"
+    if hasattr(author, "name"):
+        n = author.name
+        if hasattr(n, "first") and hasattr(n, "last"):
+            return f"{n.first} {n.last}"
+        return str(n)
+    return str(author)
 
-    Uses the acl-anthology Python package.
-    """
+
+def _paper_to_result(paper) -> Paper:
+    """Convert an ACL Anthology paper object to our Paper dataclass."""
+    title_str = str(paper.title) if paper.title else ""
+    abstract_str = ""
+    if hasattr(paper, "abstract") and paper.abstract:
+        abstract_str = str(paper.abstract)
+
+    authors = [_format_author(a) for a in paper.authors] if paper.authors else []
+
+    published = None
+    if hasattr(paper, "year") and paper.year:
+        try:
+            month_num = 1
+            if hasattr(paper, "month") and paper.month:
+                MONTHS = {
+                    "january": 1, "february": 2, "march": 3, "april": 4,
+                    "may": 5, "june": 6, "july": 7, "august": 8,
+                    "september": 9, "october": 10, "november": 11, "december": 12,
+                }
+                month_num = MONTHS.get(str(paper.month).lower(), 1)
+            published = datetime(int(paper.year), month_num, 1)
+        except (ValueError, TypeError):
+            pass
+
+    venue_str = None
+    if hasattr(paper, "full_id") and paper.full_id:
+        parts = str(paper.full_id).split(".")
+        if len(parts) >= 2:
+            venue_str = parts[1].split("-")[0].upper()
+
+    url = f"https://aclanthology.org/{paper.full_id}/" if hasattr(paper, "full_id") else ""
+
+    return Paper(
+        title=title_str,
+        authors=authors,
+        abstract=abstract_str[:500],
+        url=url,
+        published=published,
+        source="ACL",
+        topics=[venue_str] if venue_str else None,
+    )
+
+
+def _get_anthology():
     try:
         from acl_anthology import Anthology
     except ImportError:
-        raise ImportError(
-            "acl-anthology package required: pip install acl-anthology"
-        )
+        raise ImportError("acl-anthology package required: pip install acl-anthology")
+    return Anthology.from_repo()
 
-    anthology = Anthology.from_repo()
+
+def search_acl(query: str, max_results: int = 20) -> list[Paper]:
+    """Search ACL Anthology for papers matching the query."""
+    anthology = _get_anthology()
     results = []
-
-    query_lower = query.lower()
-    query_terms = query_lower.split()
+    query_terms = query.lower().split()
 
     for volume in anthology.volumes():
         for paper in volume.papers():
             title_str = str(paper.title) if paper.title else ""
-            abstract_str = ""
-            if hasattr(paper, "abstract") and paper.abstract:
-                abstract_str = str(paper.abstract)
-
+            abstract_str = str(paper.abstract) if hasattr(paper, "abstract") and paper.abstract else ""
             text = (title_str + " " + abstract_str).lower()
+
             if all(term in text for term in query_terms):
-                authors = []
-                if paper.authors:
-                    for author in paper.authors:
-                        name = str(author.name) if hasattr(author, "name") else str(author)
-                        authors.append(name)
-
-                published = None
-                if hasattr(paper, "year") and paper.year:
-                    from datetime import datetime
-                    try:
-                        published = datetime(int(paper.year), 1, 1)
-                    except (ValueError, TypeError):
-                        pass
-
-                url = f"https://aclanthology.org/{paper.full_id}/" if hasattr(paper, "full_id") else ""
-
-                results.append(
-                    Paper(
-                        title=title_str,
-                        authors=authors,
-                        abstract=abstract_str[:500],
-                        url=url,
-                        published=published,
-                        source="ACL",
-                        topics=None,
-                    )
-                )
+                results.append(_paper_to_result(paper))
                 if len(results) >= max_results:
                     return results
 
     return results
 
 
-def search_acl_by_venue(venue: str, year: int | None = None, max_results: int = 20) -> list[Paper]:
-    """Search ACL Anthology by venue (e.g. 'acl', 'emnlp', 'naacl')."""
-    try:
-        from acl_anthology import Anthology
-    except ImportError:
-        raise ImportError(
-            "acl-anthology package required: pip install acl-anthology"
-        )
+def search_acl_by_venue(
+    venue: str,
+    year: int | None = None,
+    max_results: int = 20,
+    keywords: list[str] | None = None,
+) -> list[Paper]:
+    """Search ACL Anthology by venue and optional year/keywords.
 
-    anthology = Anthology.from_repo()
+    Args:
+        venue: Venue identifier (e.g. 'acl', 'emnlp', 'naacl', 'eacl')
+        year: Filter by year
+        max_results: Maximum results to return
+        keywords: Optional keyword filter on title+abstract
+    """
+    anthology = _get_anthology()
     results = []
 
     for volume in anthology.volumes():
@@ -90,38 +119,14 @@ def search_acl_by_venue(venue: str, year: int | None = None, max_results: int = 
                 continue
 
         for paper in volume.papers():
-            title_str = str(paper.title) if paper.title else ""
-            abstract_str = ""
-            if hasattr(paper, "abstract") and paper.abstract:
-                abstract_str = str(paper.abstract)
+            if keywords:
+                title_str = str(paper.title) if paper.title else ""
+                abstract_str = str(paper.abstract) if hasattr(paper, "abstract") and paper.abstract else ""
+                text = (title_str + " " + abstract_str).lower()
+                if not any(kw.lower() in text for kw in keywords):
+                    continue
 
-            authors = []
-            if paper.authors:
-                for author in paper.authors:
-                    name = str(author.name) if hasattr(author, "name") else str(author)
-                    authors.append(name)
-
-            published = None
-            if hasattr(paper, "year") and paper.year:
-                from datetime import datetime
-                try:
-                    published = datetime(int(paper.year), 1, 1)
-                except (ValueError, TypeError):
-                    pass
-
-            url = f"https://aclanthology.org/{paper.full_id}/" if hasattr(paper, "full_id") else ""
-
-            results.append(
-                Paper(
-                    title=title_str,
-                    authors=authors,
-                    abstract=abstract_str[:500],
-                    url=url,
-                    published=published,
-                    source="ACL",
-                    topics=None,
-                )
-            )
+            results.append(_paper_to_result(paper))
             if len(results) >= max_results:
                 return results
 
