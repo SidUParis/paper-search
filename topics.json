@@ -13,7 +13,17 @@
       "gender bias NLP language model"
     ],
     "acl_venues": ["acl", "eacl", "naacl", "emnlp", "findings", "coling"],
-    "acl_years": [2025, 2026],
+    "acl_years": [2024, 2025, 2026],
+    "scholar_database_id": "05458d7d54b148a0a0b4807774e8fe90",
+    "scholar_data_source_id": "14df3590-0cb6-40bc-ae5f-cdf7928d21a8",
+    "scholar_venues": ["FAccT", "NeurIPS", "ICLR", "ICML"],
+    "scholar_queries": [
+      "social bias LLM",
+      "bias benchmark question answering",
+      "fairness large language model",
+      "bias in LLM",
+      "BBQ bias"
+    ],
     "created": "2026-04-07"
   },
   "conv-summarization": {
@@ -29,7 +39,43 @@
       "dialogue summarization LLM"
     ],
     "acl_venues": ["acl", "eacl", "naacl", "emnlp", "findings", "coling"],
-    "acl_years": [2025, 2026],
+    "acl_years": [2024, 2025, 2026],
+    "scholar_database_id": "deb2ccdc3fdf48e480b1df3fa26cf8af",
+    "scholar_data_source_id": "1c2c6b82-594e-4d4b-9c04-4177c2b3ffc2",
+    "scholar_venues": ["FAccT", "NeurIPS", "ICLR", "ICML"],
+    "scholar_queries": [
+      "conversational summarization",
+      "dialogue summarization LLM",
+      "meeting summarization abstractive",
+      "multi-party dialogue summary"
+    ],
     "created": "2026-04-07"
+  },
+  "sycophancy": {
+    "name": "Sycophancy in LLMs",
+    "keywords": ["sycophancy", "sycophantic", "people-pleasing", "alignment faking", "reward hacking", "RLHF"],
+    "acl_database_id": "71b22e042f7c41fea7b79eee09e9d278",
+    "acl_data_source_id": "1a50a598-4104-485f-befa-8f68efdd7652",
+    "arxiv_database_id": "fc90e6dad1254c359cd8ddaa2777118f",
+    "arxiv_data_source_id": "45bf4cf1-fa4e-44d0-8750-c49684234d05",
+    "arxiv_queries": [
+      "sycophancy large language model",
+      "sycophantic behavior LLM RLHF",
+      "alignment faking language model",
+      "people-pleasing AI reward hacking"
+    ],
+    "acl_venues": ["acl", "eacl", "naacl", "emnlp", "findings", "coling"],
+    "acl_years": [2024, 2025, 2026],
+    "scholar_database_id": "206d7956a3cd415ba619013bcec2033f",
+    "scholar_data_source_id": "c23baca6-c136-431b-a53b-5c407f16e2f7",
+    "scholar_venues": ["FAccT", "NeurIPS", "ICLR", "ICML"],
+    "scholar_queries": [
+      "sycophancy LLM",
+      "sycophantic behavior RLHF",
+      "alignment faking language model",
+      "reward hacking human feedback",
+      "people-pleasing AI alignment"
+    ],
+    "created": "2026-04-08"
   }
 }

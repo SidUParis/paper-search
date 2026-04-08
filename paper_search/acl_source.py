@@ -43,12 +43,26 @@ def _paper_to_result(paper) -> Paper:
             pass
 
     venue_str = None
+    is_findings = False
     if hasattr(paper, "full_id") and paper.full_id:
         parts = str(paper.full_id).split(".")
         if len(parts) >= 2:
-            venue_str = parts[1].split("-")[0].upper()
+            segment = parts[1]  # e.g. "findings-eacl" or "eacl-main"
+            seg_parts = segment.split("-")
+            if seg_parts[0].lower() == "findings" and len(seg_parts) >= 2:
+                # findings-eacl -> venue=EACL, track=Findings
+                venue_str = seg_parts[1].upper()
+                is_findings = True
+            else:
+                venue_str = seg_parts[0].upper()
 
     url = f"https://aclanthology.org/{paper.full_id}/" if hasattr(paper, "full_id") else ""
+
+    topics = []
+    if venue_str:
+        topics.append(venue_str)
+    if is_findings:
+        topics.append("Findings")
 
     return Paper(
         title=title_str,
@@ -56,8 +70,8 @@ def _paper_to_result(paper) -> Paper:
         abstract=abstract_str[:500],
         url=url,
         published=published,
-        source="ACL",
-        topics=[venue_str] if venue_str else None,
+        source=venue_str or "ACL",
+        topics=topics or None,
     )
 
 

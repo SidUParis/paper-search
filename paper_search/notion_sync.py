@@ -73,7 +73,6 @@ def sync_acl_papers(papers: list[Paper], database_id: str, data_source_id: str) 
             "Authors": {"rich_text": [{"text": {"content": ", ".join(paper.authors)[:2000]}}]},
             "URL": {"url": paper.url if paper.url else None},
             "Abstract": {"rich_text": [{"text": {"content": paper.abstract[:2000]}}]},
-            "Source": {"select": {"name": "ACL"}},
             "Status": {"select": {"name": "New"}},
         }
 
@@ -87,11 +86,25 @@ def sync_acl_papers(papers: list[Paper], database_id: str, data_source_id: str) 
                 "multi_select": [{"name": t[:100]} for t in paper.topics[:10]]
             }
 
+        # Set venue as Source (select) — works on databases that have it, ignored on error
+        if paper.source:
+            properties["Source"] = {"select": {"name": paper.source}}
+
         try:
             page = client.pages.create(parent={"database_id": database_id}, properties=properties)
             results.append({"title": paper.title, "notion_url": page["url"]})
             existing_urls.add(paper.url)
         except Exception as e:
+            # Retry without Source if the database doesn't have that property
+            if "Source" in str(e) and "Source" in properties:
+                del properties["Source"]
+                try:
+                    page = client.pages.create(parent={"database_id": database_id}, properties=properties)
+                    results.append({"title": paper.title, "notion_url": page["url"]})
+                    existing_urls.add(paper.url)
+                    continue
+                except Exception as e2:
+                    e = e2
             results.append({"title": paper.title, "error": str(e)})
 
     return results
@@ -118,8 +131,57 @@ def sync_arxiv_papers(papers: list[Paper], database_id: str, data_source_id: str
             "Status": {"select": {"name": "New"}},
         }
 
-        if arxiv_id:
-            properties["arxiv ID"] = {"rich_text": [{"text": {"content": arxiv_id}}]}
+        if paper.published:
+            properties["Published"] = {
+                "date": {"start": paper.published.strftime("%Y-%m-%d")}
+            }
+
+        if paper.topics:
+            properties["Topics"] = {
+                "multi_select": [{"name": t[:100]} for t in paper.topics[:10]]
+            }
+
+        try:
+            page = client.pages.create(parent={"database_id": database_id}, properties=properties)
+            results.append({"title": paper.title, "notion_url": page["url"]})
+            existing_urls.add(paper.url)
+        except Exception as e:
+            results.append({"title": paper.title, "error": str(e)})
+
+    return results
+
+
+def sync_scholar_papers(papers: list[Paper], database_id: str, data_source_id: str) -> list[dict]:
+    """Push Semantic Scholar papers (FAccT/NeurIPS/ICLR/ICML) to Notion. Skips duplicates."""
+    client = get_notion_client()
+    existing_urls = _get_existing_urls(client, data_source_id)
+    results = []
+
+    # Map known venue strings to the select options
+    VENUE_MAP = {"FAccT": "FAccT", "NeurIPS": "NeurIPS", "ICLR": "ICLR", "ICML": "ICML"}
+
+    for paper in papers:
+        if paper.url in existing_urls:
+            results.append({"title": paper.title, "skipped": "already exists"})
+            continue
+
+        properties = {
+            "Title": {"title": [{"text": {"content": paper.title[:2000]}}]},
+            "Authors": {"rich_text": [{"text": {"content": ", ".join(paper.authors)[:2000]}}]},
+            "URL": {"url": paper.url if paper.url else None},
+            "Abstract": {"rich_text": [{"text": {"content": paper.abstract[:2000]}}]},
+            "Status": {"select": {"name": "New"}},
+        }
+
+        # Set Venue from source or topics
+        venue_name = paper.source if paper.source in VENUE_MAP else None
+        if not venue_name and paper.topics:
+            for t in paper.topics:
+                if t in VENUE_MAP:
+                    venue_name = t
+                    break
+        if venue_name:
+            properties["Venue"] = {"select": {"name": venue_name}}
 
         if paper.published:
             properties["Published"] = {
@@ -127,15 +189,11 @@ def sync_arxiv_papers(papers: list[Paper], database_id: str, data_source_id: str
             }
 
         if paper.topics:
-            categories = [t for t in paper.topics if t.startswith("cs.")]
-            topics = [t for t in paper.topics if not t.startswith("cs.")]
-            if categories:
-                properties["Categories"] = {
-                    "multi_select": [{"name": c[:100]} for c in categories[:10]]
-                }
-            if topics:
+            # Filter out venue names from topics
+            topic_tags = [t for t in paper.topics if t not in VENUE_MAP]
+            if topic_tags:
                 properties["Topics"] = {
-                    "multi_select": [{"name": t[:100]} for t in topics[:10]]
+                    "multi_select": [{"name": t[:100]} for t in topic_tags[:10]]
                 }
 
         try:

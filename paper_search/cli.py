@@ -83,12 +83,14 @@ def add_topic(slug, name, keywords, arxiv_queries, acl_db, acl_ds, arxiv_db, arx
 
 @main.command()
 @click.argument("topic_slug")
-@click.option("--source", type=click.Choice(["both", "acl", "arxiv"]), default="both")
-@click.option("--max-results", default=20, help="Max papers per source/query")
+@click.option("--source", type=click.Choice(["all", "acl", "arxiv", "scholar"]), default="all")
+@click.option("--max-results", default=200, help="Max papers per source/query")
 @click.option("--no-notion", is_flag=True, help="Skip Notion sync")
 @click.option("--summarize/--no-summarize", default=True, help="AI-summarize new papers (default: on)")
 def update(topic_slug: str, source: str, max_results: int, no_notion: bool, summarize: bool):
     """Search and sync papers for a topic. Safe to run daily (deduplicates).
+
+    Sources: acl, arxiv, scholar (FAccT/NeurIPS/ICLR/ICML), or all.
 
     \b
     Examples:
@@ -99,7 +101,7 @@ def update(topic_slug: str, source: str, max_results: int, no_notion: bool, summ
     from paper_search.topics import get_topic
     from paper_search.arxiv_source import search_arxiv
     from paper_search.acl_source import search_acl_by_venue
-    from paper_search.notion_sync import sync_acl_papers, sync_arxiv_papers
+    from paper_search.notion_sync import sync_acl_papers, sync_arxiv_papers, sync_scholar_papers
     from paper_search.markdown import papers_to_markdown, save_markdown
 
     topic = get_topic(topic_slug)
@@ -112,9 +114,10 @@ def update(topic_slug: str, source: str, max_results: int, no_notion: bool, summ
     seen = set()
     acl_papers = []
     arxiv_papers = []
+    scholar_papers = []
 
     # ── ACL search ──
-    if source in ("both", "acl"):
+    if source in ("all", "acl"):
         console.print("[dim]Searching ACL Anthology...[/dim]")
         for year in topic.get("acl_years", [2025, 2026]):
             for venue in topic.get("acl_venues", []):
@@ -131,7 +134,7 @@ def update(topic_slug: str, source: str, max_results: int, no_notion: bool, summ
         console.print(f"  [bold]{len(acl_papers)}[/bold] ACL papers found")
 
     # ── arxiv search ──
-    if source in ("both", "arxiv"):
+    if source in ("all", "arxiv"):
         console.print("[dim]Searching arxiv...[/dim]")
         for query in topic.get("arxiv_queries", []):
             console.print(f"  [dim]{query}[/dim]")
@@ -149,8 +152,27 @@ def update(topic_slug: str, source: str, max_results: int, no_notion: bool, summ
 
         console.print(f"  [bold]{len(arxiv_papers)}[/bold] arxiv papers found")
 
+    # ── Semantic Scholar search (FAccT, NeurIPS, ICLR, ICML) ──
+    if source in ("all", "scholar") and topic.get("scholar_venues"):
+        console.print(f"[dim]Searching {', '.join(topic['scholar_venues'])}...[/dim]")
+        from paper_search.scholar_source import search_venue
+        for query in topic.get("scholar_queries", topic.get("arxiv_queries", [])):
+            console.print(f"  [dim]{query}[/dim]")
+            try:
+                papers = search_venue(query, topic["scholar_venues"], max_results=max_results)
+                for p in papers:
+                    key = p.title.lower().strip()
+                    if key not in seen:
+                        seen.add(key)
+                        scholar_papers.append(p)
+            except Exception as e:
+                console.print(f"  [yellow]Error: {e}[/yellow]")
+            time.sleep(2)
+
+        console.print(f"  [bold]{len(scholar_papers)}[/bold] Scholar papers found")
+
     # ── Save markdown ──
-    all_papers = acl_papers + arxiv_papers
+    all_papers = acl_papers + arxiv_papers + scholar_papers
     if all_papers:
         md = papers_to_markdown(all_papers, topic["name"])
         slug = topic_slug.replace(" ", "_")
@@ -183,15 +205,29 @@ def update(topic_slug: str, source: str, max_results: int, no_notion: bool, summ
             errors = len([r for r in results if "error" in r])
             console.print(f"  arxiv -> Notion: [green]+{added}[/green] new, {skipped} existing, [red]{errors} errors[/red]")
 
+        if scholar_papers and topic.get("scholar_database_id"):
+            results = sync_scholar_papers(
+                scholar_papers,
+                topic["scholar_database_id"],
+                topic["scholar_data_source_id"],
+            )
+            added = len([r for r in results if "notion_url" in r])
+            skipped = len([r for r in results if "skipped" in r])
+            errors = len([r for r in results if "error" in r])
+            console.print(f"  Scholar -> Notion: [green]+{added}[/green] new, {skipped} existing, [red]{errors} errors[/red]")
+
     # ── AI Summarization ──
     if summarize and not no_notion:
         console.print("[dim]Generating AI summaries for unsummarized papers...[/dim]")
         from paper_search.summarizer import summarize_papers_in_notion
 
-        for ds_label, ds_id, db_id in [
+        dbs = [
             ("ACL", topic["acl_data_source_id"], topic["acl_database_id"]),
             ("arxiv", topic["arxiv_data_source_id"], topic["arxiv_database_id"]),
-        ]:
+        ]
+        if topic.get("scholar_data_source_id"):
+            dbs.append(("Scholar", topic["scholar_data_source_id"], topic["scholar_database_id"]))
+        for ds_label, ds_id, db_id in dbs:
             count = 0
             errors = 0
             for event in summarize_papers_in_notion(ds_id, db_id):

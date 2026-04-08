@@ -31,11 +31,11 @@ def get_llm_client() -> tuple[OpenAI, str]:
         base_url="https://openrouter.ai/api/v1",
         api_key=api_key,
     )
-    model = os.environ.get("OPENROUTER_MODEL", "qwen/qwen3.6-plus:free")
+    model = os.environ.get("OPENROUTER_MODEL", "stepfun/step-3.5-flash:free")
     return client, model
 
 
-def summarize_paper(title: str, abstract: str, max_retries: int = 3) -> str:
+def summarize_paper(title: str, abstract: str, max_retries: int = 5) -> str:
     """Generate a structured summary for a single paper."""
     client, model = get_llm_client()
 
@@ -54,13 +54,13 @@ def summarize_paper(title: str, abstract: str, max_retries: int = 3) -> str:
             return ""
         except Exception as e:
             if "429" in str(e) and attempt < max_retries - 1:
-                wait = (attempt + 1) * 10
+                wait = (attempt + 1) * 15  # longer backoff for free models
                 time.sleep(wait)
             else:
                 raise
 
 
-def summarize_papers_in_notion(data_source_id: str, database_id: str, batch_size: int = 10, delay: float = 1.0) -> dict:
+def summarize_papers_in_notion(data_source_id: str, database_id: str, batch_size: int = 10, delay: float = 3.0) -> dict:
     """Summarize all papers in a Notion database that don't have a Summary yet.
 
     Returns stats: {summarized, skipped, errors}.
