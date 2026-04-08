@@ -122,6 +122,70 @@ paper-search update bias-fairness --source acl  # will only summarize unsummariz
 
 ---
 
+## How To: Add More Years or Change Search Scope
+
+The year range and search queries are configured per topic in `topics.json`. To expand coverage (e.g. add 2022 or 2023 papers):
+
+### Step 1: Edit `topics.json`
+
+```jsonc
+// For ACL Anthology — edit the acl_years array
+"acl_years": [2022, 2023, 2024, 2025, 2026],  // was [2024, 2025, 2026]
+
+// For Semantic Scholar — add a year parameter (optional, currently searches all years)
+// Scholar doesn't filter by year by default, so older papers are already included
+
+// For arxiv — arxiv API returns recent papers by default
+// To search older arxiv papers, add more specific queries in arxiv_queries
+```
+
+### Step 2: Re-run the update
+
+```bash
+source .venv/bin/activate
+
+# Re-run ACL source — will fetch 2022+2023 papers and sync new ones to Notion
+paper-search update bias-fairness --source acl --no-summarize
+
+# Scholar already includes all years, but re-running picks up anything missed
+paper-search update bias-fairness --source scholar --no-summarize
+```
+
+Deduplication ensures existing papers won't be duplicated — only new ones are added.
+
+### What each source covers
+
+| Source | Year control | How it works |
+|---|---|---|
+| **ACL** | `acl_years` in topics.json | Iterates each venue x year combo; only fetches listed years |
+| **arxiv** | None (returns recent) | API returns recent papers matching the query; no year filter |
+| **Scholar** | None (all years) | Semantic Scholar returns all matching papers regardless of year |
+
+### Example: Add 2022-2023 to all topics
+
+Edit `topics.json` and change all `acl_years` entries:
+```json
+"acl_years": [2022, 2023, 2024, 2025, 2026]
+```
+
+Then re-run:
+```bash
+paper-search update bias-fairness --source acl --no-summarize
+paper-search update conv-summarization --source acl --no-summarize
+paper-search update sycophancy --source acl --no-summarize
+```
+
+### Adding new keywords or queries
+
+To broaden or narrow search results, edit these fields in `topics.json`:
+- **`keywords`**: Filters ACL papers — any keyword match in title+abstract counts
+- **`arxiv_queries`**: Full search strings sent to arxiv API
+- **`scholar_queries`**: Full search strings sent to Semantic Scholar API
+
+After editing, just re-run `paper-search update <topic>` — new matching papers will be added.
+
+---
+
 ## How To: Summarization
 
 AI summaries are generated via OpenRouter using a free LLM model. Each paper gets a structured summary with RQ, Idea, Method, Theory, and Results sections.
