@@ -1,0 +1,28 @@
+{
+  "paper_id": "2026-zhang-evaluating-effect-retrieval-augmentation-social-biases",
+  "title": "Evaluating the Effect of Retrieval Augmentation on Social Biases",
+  "year": 2026,
+  "venue": "EACL",
+  "bias_type": "stereotype",
+  "benchmark_name": "BBQ, CBBQ, JBBQ",
+  "benchmark_role": "uses_existing_benchmark",
+  "language_scope": "multilingual",
+  "languages": ["English", "Chinese", "Japanese"],
+  "language_count": 3,
+  "translation_based": true,
+  "native_authored_data": false,
+  "protected_attributes": ["gender", "age", "race", "religion"],
+  "evaluation_target": "discriminative",
+  "human_evaluation_used": false,
+  "cross_lingual_comparison_present": true,
+  "relevance_to_frenchbbq": "high",
+  "relevance_to_multilingual_unified_bbq": "high",
+  "review_gap_tags": [
+    "translation_quality_issues",
+    "limited_language_coverage",
+    "limited_bias_types",
+    "single_task_evaluation",
+    "annotator_bias_in_benchmarks",
+    "cultural_nuance_loss_in_translation"
+  ]
+}

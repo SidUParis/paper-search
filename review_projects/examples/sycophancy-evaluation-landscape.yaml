@@ -1,0 +1,105 @@
+review_project_id: sycophancy-evaluation-landscape
+review_project_name: Sycophancy Evaluation Landscape
+source_topic_slug: sycophancy
+objective: >
+  Build a structured review of sycophancy-related LLM papers, focusing on how
+  the field defines, measures, and mitigates agreement-seeking or user-belief-
+  mirroring behavior.
+
+research_questions:
+  - How is sycophancy operationalized in current LLM papers?
+  - What benchmarks, datasets, or elicitation setups are used?
+  - How much of the literature focuses on measurement versus mitigation?
+  - How closely is sycophancy tied to RLHF, preference optimization, or alignment faking?
+
+inclusion_criteria:
+  - empirical paper or survey
+  - focuses on sycophancy, user-belief mirroring, agreement-seeking, alignment faking, or closely related behavior
+  - provides benchmark, dataset, evaluation, analysis, or mitigation evidence
+  - concerns LLMs or modern language models
+
+exclusion_criteria:
+  - general alignment or safety papers without sycophancy-specific evidence
+  - persuasion or social influence work unrelated to LLM answer behavior
+  - opinion pieces without empirical analysis
+  - RLHF papers with no clear connection to agreement-seeking behavior
+
+screening:
+  confidence_threshold_for_human_review: 0.8
+  use_summary: true
+  use_zh_brief: true
+  use_limitations: true
+  use_fulltext_excerpt_if_needed: true
+
+schema:
+  use_base_schema: true
+  topic_schema:
+    - name: benchmark_name
+      type: text
+      required: false
+      description: Benchmark or dataset name central to the paper.
+      evidence_source: fulltext
+
+    - name: setup_type
+      type: enum
+      required: true
+      allowed_values:
+        - qa
+        - chat
+        - preference
+        - roleplay
+        - other
+      description: Main interaction setup used to elicit or measure sycophancy.
+      evidence_source: fulltext
+
+    - name: evaluation_target
+      type: enum
+      required: true
+      allowed_values:
+        - elicitation
+        - measurement
+        - mitigation
+        - mechanistic_analysis
+        - other
+      description: Primary goal of the paper's evaluation.
+      evidence_source: fulltext
+
+    - name: user_opinion_conditioned
+      type: boolean
+      required: false
+      description: Whether model behavior is explicitly conditioned on the user's beliefs or opinions.
+      evidence_source: fulltext
+
+    - name: feedback_loop_involved
+      type: boolean
+      required: false
+      description: Whether RLHF, preference optimization, reward models, or related feedback loops are part of the story.
+      evidence_source: fulltext
+
+    - name: llm_used
+      type: boolean
+      required: false
+      description: Whether the paper studies modern LLMs or instruction-tuned language models.
+      evidence_source: fulltext
+
+    - name: benchmark_or_dataset
+      type: boolean
+      required: false
+      description: Whether the paper introduces or centers a benchmark/dataset.
+      evidence_source: fulltext
+
+    - name: relevance_to_sycophancy_work
+      type: enum
+      required: false
+      allowed_values:
+        - low
+        - medium
+        - high
+      description: Relevance to the user's sycophancy research tracking.
+      evidence_source: synthesis
+
+    - name: review_gap_tags
+      type: list[text]
+      required: false
+      description: Gap tags surfaced for this sycophancy review.
+      evidence_source: synthesis

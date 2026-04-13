@@ -1,0 +1,28 @@
+{
+  "paper_id": "2026-lohr-hidden-bias-explicit-implicit-political-stereotypes",
+  "title": "The Hidden Bias: Explicit and Implicit Political Stereotypes in LLMs",
+  "year": 2026,
+  "venue": "EACL",
+  "bias_type": "stereotype",
+  "benchmark_name": "Political Compass Test (PCT)",
+  "benchmark_role": "uses_existing_benchmark",
+  "language_scope": "multilingual",
+  "languages": ["English", "Czech"],
+  "language_count": 7,
+  "translation_based": true,
+  "native_authored_data": false,
+  "protected_attributes": ["political_orientation", "gender", "ethnicity", "country", "language"],
+  "evaluation_target": "discriminative",
+  "human_evaluation_used": true,
+  "cross_lingual_comparison_present": true,
+  "relevance_to_frenchbbq": "medium",
+  "relevance_to_multilingual_unified_bbq": "high",
+  "review_gap_tags": [
+    "PCT result instability and prompt sensitivity",
+    "Western/Anglo-sphere persona bias limits Global South generalizability",
+    "Non-public PCT evaluation criteria require ad-hoc annotation",
+    "Cross-lingual semantic equivalence only partially verified",
+    "Implicit stereotypes via language stronger than explicit persona prompting",
+    "Llama models resistant to both explicit and implicit stereotyping"
+  ]
+}

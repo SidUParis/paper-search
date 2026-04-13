@@ -1,7 +1,7 @@
 {
   "bias-fairness": {
     "name": "Bias & Fairness in LLMs",
-    "keywords": ["social bias", "bbq", "bias benchmark", "stereotyp", "debias", "gender bias", "racial bias", "fairness"],
+    "keywords": ["social bias", "bbq", "bias benchmark", "stereotyp", "debias", "gender bias", "racial bias", "fairness", "position bias", "positional bias", "unbiased", "bias evaluation"],
     "acl_database_id": "681c5e0e039a446f8d3224a8a70fe5f9",
     "acl_data_source_id": "3d43ef78-5f47-4ae1-9f31-fe5b382b680f",
     "arxiv_database_id": "e9b153737d79435e8aa23721899e0ba0",
@@ -10,7 +10,9 @@
       "social bias large language model",
       "BBQ bias benchmark question answering",
       "debiasing LLM fairness stereotype",
-      "gender bias NLP language model"
+      "gender bias NLP language model",
+      "positional bias large language model summarization",
+      "position bias conversational summarization"
     ],
     "acl_venues": ["acl", "eacl", "naacl", "emnlp", "findings", "coling"],
     "acl_years": [2024, 2025, 2026],
@@ -22,7 +24,9 @@
       "bias benchmark question answering",
       "fairness large language model",
       "bias in LLM",
-      "BBQ bias"
+      "BBQ bias",
+      "positional bias LLM summarization",
+      "position bias conversational summarization"
     ],
     "created": "2026-04-07"
   },

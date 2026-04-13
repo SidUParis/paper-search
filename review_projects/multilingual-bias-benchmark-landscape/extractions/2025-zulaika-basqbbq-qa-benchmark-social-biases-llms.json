@@ -1,0 +1,27 @@
+{
+  "paper_id": "2025-zulaika-basqbbq-qa-benchmark-social-biases-llms",
+  "title": "BasqBBQ: QA Benchmark for Social Biases in LLMs for Basque",
+  "year": 2025,
+  "venue": "COLING",
+  "bias_type": "stereotype",
+  "benchmark_name": "BasqBBQ",
+  "benchmark_role": "introduces_benchmark",
+  "language_scope": "multilingual",
+  "languages": ["Basque", "English"],
+  "language_count": 2,
+  "translation_based": true,
+  "native_authored_data": false,
+  "protected_attributes": ["Disability Status", "Age", "Physical Appearance", "Sexual Orientation", "Race/Ethnicity", "Socio-Economic Status", "Gender Identity", "Nationality"],
+  "evaluation_target": "discriminative",
+  "human_evaluation_used": false,
+  "cross_lingual_comparison_present": true,
+  "relevance_to_frenchbbq": "high",
+  "relevance_to_multilingual_unified_bbq": "high",
+  "review_gap_tags": [
+    "translation-only adaptation",
+    "limited_bias_dimensions",
+    "mcqa_evaluation_only",
+    "low_resource_language_focus",
+    "cross_lingual_bias_transfer"
+  ]
+}

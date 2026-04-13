@@ -1,0 +1,110 @@
+review_project_id: conversational-summarization-landscape
+review_project_name: Conversational Summarization Landscape
+source_topic_slug: conv-summarization
+objective: >
+  Build a structured review of conversational summarization papers, covering
+  datasets, benchmarks, evaluation setups, and strong methodological patterns
+  relevant to future topic tracking and research planning.
+
+research_questions:
+  - What datasets and benchmarks define the conversational summarization area?
+  - Which dialogue domains and input modalities are most common?
+  - How are conversational summarization systems evaluated beyond ROUGE?
+  - Where are current gaps in faithfulness, multilinguality, and real-time use?
+
+inclusion_criteria:
+  - empirical paper or survey
+  - focuses on conversational, dialogue, meeting, or chat summarization
+  - contributes a benchmark, dataset, evaluation, analysis, or method
+  - contains experiments or structured review evidence
+
+exclusion_criteria:
+  - generic document summarization without conversational setting
+  - dialogue or chat work without summarization
+  - speech recognition/transcription work without summarization target
+  - opinion pieces without empirical evidence
+
+screening:
+  confidence_threshold_for_human_review: 0.8
+  use_summary: true
+  use_zh_brief: true
+  use_limitations: true
+  use_fulltext_excerpt_if_needed: true
+
+schema:
+  use_base_schema: true
+  topic_schema:
+    - name: benchmark_name
+      type: text
+      required: false
+      description: Benchmark or dataset name central to the paper.
+      evidence_source: fulltext
+
+    - name: dialogue_domain
+      type: enum
+      required: true
+      allowed_values:
+        - meeting
+        - customer_support
+        - medical
+        - social_media
+        - open_domain_chat
+        - other
+      description: Main conversational domain studied in the paper.
+      evidence_source: fulltext
+
+    - name: input_modality
+      type: enum
+      required: true
+      allowed_values:
+        - text_only
+        - speech_or_transcript
+        - multimodal
+      description: Main input modality for summarization.
+      evidence_source: fulltext
+
+    - name: evaluation_focus
+      type: enum
+      required: true
+      allowed_values:
+        - summary_quality
+        - faithfulness
+        - user_satisfaction
+        - efficiency
+        - other
+      description: Main evaluation concern highlighted by the paper.
+      evidence_source: fulltext
+
+    - name: llm_used
+      type: boolean
+      required: false
+      description: Whether the paper uses or evaluates LLM-based summarization.
+      evidence_source: fulltext
+
+    - name: multilingual_or_crosslingual
+      type: boolean
+      required: false
+      description: Whether the work explicitly studies multilingual or cross-lingual conversational summarization.
+      evidence_source: fulltext
+
+    - name: streaming_or_real_time
+      type: boolean
+      required: false
+      description: Whether the work addresses streaming or real-time summarization constraints.
+      evidence_source: fulltext
+
+    - name: relevance_to_conversational_summarization_work
+      type: enum
+      required: false
+      allowed_values:
+        - low
+        - medium
+        - high
+      description: Relevance to the user's conversational summarization research tracking.
+      evidence_source: synthesis
+
+    - name: review_gap_tags
+      type: list[text]
+      required: false
+      description: Gap tags surfaced for this conversational summarization review.
+      evidence_source: synthesis

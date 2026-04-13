@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import json
+import time
 from openai import OpenAI
 from paper_search.arxiv_source import Paper, search_arxiv, search_arxiv_recent
 from paper_search.acl_source import search_acl, search_acl_by_venue
@@ -237,7 +238,7 @@ class PaperAgent:
             base_url="https://openrouter.ai/api/v1",
             api_key=api_key,
         )
-        self.model = model or os.environ.get("OPENROUTER_MODEL", "qwen/qwen3.6-plus:free")
+        self.model = model or os.environ.get("OPENROUTER_MODEL", "stepfun/step-3.5-flash:free")
         self.messages: list[dict] = [{"role": "system", "content": SYSTEM_PROMPT}]
 
     def chat(self, user_message: str, max_steps: int = 8) -> str:
@@ -248,12 +249,26 @@ class PaperAgent:
         self.messages.append({"role": "user", "content": user_message})
 
         for _ in range(max_steps):
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=self.messages,
-                tools=TOOLS,
-                tool_choice="auto",
-            )
+            response = None
+            for attempt in range(5):
+                try:
+                    response = self.client.chat.completions.create(
+                        model=self.model,
+                        messages=self.messages,
+                        tools=TOOLS,
+                        tool_choice="auto",
+                    )
+                    break
+                except Exception as e:
+                    if "429" in str(e) and attempt < 4:
+                        wait = (attempt + 1) * 15
+                        yield_status(f"  -> model rate-limited, retrying in {wait}s")
+                        time.sleep(wait)
+                        continue
+                    raise
+
+            if response is None:
+                return "Model call failed after retries."
 
             message = response.choices[0].message
             self.messages.append(message.model_dump())

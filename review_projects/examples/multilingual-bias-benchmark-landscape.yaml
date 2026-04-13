@@ -1,0 +1,160 @@
+review_project_id: multilingual-bias-benchmark-landscape
+review_project_name: Multilingual Bias Benchmark Landscape
+source_topic_slug: bias-fairness
+objective: >
+  Build a structured review of multilingual bias benchmark papers relevant to
+  future unified multilingual BBQ design.
+
+research_questions:
+  - What multilingual bias benchmarks currently exist?
+  - Which languages are covered, and how are they selected?
+  - Are benchmarks translation-based or natively constructed?
+  - Which bias dimensions and evaluation protocols are used?
+  - Which papers are most relevant for FrenchBBQ and a unified multilingual BBQ?
+
+inclusion_criteria:
+  - empirical paper
+  - benchmark or evaluation focused
+  - multilingual or cross-lingual setting
+  - directly studies bias, fairness, stereotypes, toxicity, or disparity
+
+exclusion_criteria:
+  - purely monolingual English-only papers
+  - opinion pieces without empirical evaluation
+  - papers unrelated to bias/fairness evaluation
+  - papers that mention multilinguality but do not evaluate across languages
+
+screening:
+  confidence_threshold_for_human_review: 0.8
+  use_summary: true
+  use_zh_brief: true
+  use_limitations: true
+  use_fulltext_excerpt_if_needed: true
+
+schema:
+  use_base_schema: true
+  topic_schema:
+    - name: bias_type
+      type: enum
+      required: true
+      allowed_values:
+        - stereotype
+        - toxicity
+        - fairness
+        - cultural_bias
+        - performance_disparity
+        - positional_bias
+        - allocational_harm
+        - representational_harm
+        - other
+      description: Main bias construct studied in the paper.
+      evidence_source: fulltext
+
+    - name: benchmark_name
+      type: text
+      required: false
+      description: Benchmark or dataset name central to the study.
+      evidence_source: fulltext
+
+    - name: benchmark_role
+      type: enum
+      required: false
+      allowed_values:
+        - introduces_benchmark
+        - uses_existing_benchmark
+        - compares_benchmarks
+        - critique_of_benchmark
+      description: Role of the benchmark in the paper.
+      evidence_source: fulltext
+
+    - name: language_scope
+      type: enum
+      required: true
+      allowed_values:
+        - monolingual
+        - multilingual
+        - cross_lingual
+        - code_switching
+      description: Language setting of the evaluation.
+      evidence_source: fulltext
+
+    - name: languages
+      type: list[text]
+      required: false
+      description: Explicit languages used in the paper.
+      evidence_source: fulltext
+
+    - name: language_count
+      type: integer
+      required: false
+      description: Number of languages covered.
+      evidence_source: fulltext
+
+    - name: translation_based
+      type: boolean
+      required: false
+      description: Whether the benchmark or evaluation is translation-based.
+      evidence_source: fulltext
+
+    - name: native_authored_data
+      type: boolean
+      required: false
+      description: Whether data was authored natively rather than translated.
+      evidence_source: fulltext
+
+    - name: protected_attributes
+      type: list[text]
+      required: false
+      description: Protected attributes or demographic dimensions considered.
+      evidence_source: fulltext
+
+    - name: evaluation_target
+      type: enum
+      required: false
+      allowed_values:
+        - discriminative
+        - generative
+        - open_ended
+        - preference
+        - ranking
+        - judge_based
+      description: Main evaluation mode.
+      evidence_source: fulltext
+
+    - name: human_evaluation_used
+      type: boolean
+      required: false
+      description: Whether human evaluation is part of the study.
+      evidence_source: fulltext
+
+    - name: cross_lingual_comparison_present
+      type: boolean
+      required: false
+      description: Whether explicit cross-language comparison is reported.
+      evidence_source: fulltext
+
+    - name: relevance_to_frenchbbq
+      type: enum
+      required: false
+      allowed_values:
+        - low
+        - medium
+        - high
+      description: Relevance to FrenchBBQ work.
+      evidence_source: synthesis
+
+    - name: relevance_to_multilingual_unified_bbq
+      type: enum
+      required: false
+      allowed_values:
+        - low
+        - medium
+        - high
+      description: Relevance to a unified multilingual BBQ benchmark.
+      evidence_source: synthesis
+
+    - name: review_gap_tags
+      type: list[text]
+      required: false
+      description: Key gap tags surfaced by the reviewer.
+      evidence_source: synthesis
