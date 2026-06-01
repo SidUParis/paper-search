@@ -12,7 +12,26 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.markdown import Markdown
 
-load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env"))
+
+def _load_cli_env() -> None:
+    """Load secrets for CLI runs from this checkout or the user's main paper-search repo.
+
+    The reader-site worktree is often a separate checkout without its own .env, while
+    the private Notion/OpenRouter credentials live in ~/paper-search/.env.  Load both
+    locations without overriding an explicitly exported environment variable.
+    """
+
+    repo_root = os.path.dirname(os.path.dirname(__file__))
+    for env_path in (
+        os.environ.get("PAPER_SEARCH_ENV"),
+        os.path.join(repo_root, ".env"),
+        os.path.expanduser("~/paper-search/.env"),
+    ):
+        if env_path:
+            load_dotenv(env_path, override=False)
+
+
+_load_cli_env()
 
 console = Console()
 
