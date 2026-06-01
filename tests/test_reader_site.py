@@ -100,8 +100,12 @@ def test_render_site_adds_global_ai_terminal(tmp_path: Path):
     assert "AI Reader" in index
     assert "AI Reader" in ai
     assert "id=\"chat-form\"" in ai
-    assert "Save to Notion" in ai
+    assert "note-save-card" not in ai
+    assert "Save to Notion" not in ai
+    assert "mini-send" in ai
     assert "fetch('/api/chat'" in app_js
+    assert "detectNotionIntent" in app_js
+    assert "confirm-note-save" in app_js
     assert "fetch('/api/notes/save'" in app_js
 
 

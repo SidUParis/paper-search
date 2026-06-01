@@ -66,16 +66,7 @@
       </div></div>
     </section>
 
-    <section class="note-save-card" data-note-panel>
-      <div><p class="eyebrow">Notion Note</p><strong>Save current AI answer</strong><span id="note-save-status">Ask a question first, then save the answer to this paper's Notion page.</span></div>
-      <div class="note-save-controls">
-        <select id="note-destination"><option>AI Note</option><option>PhD Relevance</option><option>Related Work</option><option>TLDR</option><option>Chinese Brief</option><option>Method</option><option>Results</option><option>Limitations</option></select>
-        <select id="note-mode"><option value="append">Append note</option><option value="property">Update field</option></select>
-        <button id="save-note" class="tiny" type="button" disabled>Save to Notion</button>
-      </div>
-    </section>
-
-    <form id="chat-form" class="floating-composer paper-composer"><textarea id="chat-question" placeholder="Ask about this paper…" rows="2"></textarea><button type="submit">➤</button></form>
+    <form id="chat-form" class="floating-composer paper-composer"><textarea id="chat-question" placeholder="Ask naturally: 解释这篇 / 保存到 Notion / 更新 PhD Relevance…" rows="2"></textarea><button class="mini-send" type="submit">➤</button></form>
 
     <section class="chat-config compact-config model-dock">
       <p class="eyebrow">AI Model</p>
