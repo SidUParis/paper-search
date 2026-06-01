@@ -445,15 +445,20 @@ def export_reader_site_cmd(topic_slug: str, source: str, output_dir: str, limit:
 @click.option("--site-dir", default="private-reader-site", help="Generated reader-site directory to serve")
 @click.option("--profile", type=click.Choice(["private", "public"]), default="private", help="Runtime profile label")
 @click.option("--site-title", default="Sidney Deep Paper Reader", help="Title returned by safe config APIs")
+@click.option("--state-dir", default=".reader", help="Local private reader state directory")
 @click.option("--host", default="127.0.0.1", help="Host/interface to bind")
 @click.option("--port", default=8765, type=int, help="Port to bind")
-def serve_reader_site_cmd(site_dir: str, profile: str, site_title: str, host: str, port: int):
+def serve_reader_site_cmd(site_dir: str, profile: str, site_title: str, state_dir: str, host: str, port: int):
     """Serve a generated reader site plus private JSON APIs."""
     from pathlib import Path
     from paper_search.reader_server import ReaderServerConfig, serve
 
     console.print(Panel(f"[bold]Serve reader site:[/bold] {site_dir}", style="green"))
-    serve(ReaderServerConfig(site_dir=Path(site_dir), profile=profile, site_title=site_title), host=host, port=port)
+    serve(
+        ReaderServerConfig(site_dir=Path(site_dir), profile=profile, site_title=site_title, state_dir=Path(state_dir)),
+        host=host,
+        port=port,
+    )
 
 
 @main.command("review-init")

@@ -78,7 +78,7 @@ def test_public_config_redacts_runtime_paths_and_secrets(tmp_path: Path):
         "site_title": "Test Reader",
         "features": {
             "chat": False,
-            "models": False,
+            "models": True,
             "jobs": False,
             "figures": False,
         },

@@ -28,6 +28,7 @@ class ReaderServerConfig:
     site_dir: Path
     profile: str = "private"
     site_title: str = "Sidney Deep Paper Reader"
+    state_dir: Path = Path(".reader")
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,7 +65,7 @@ def _safe_public_config(config: ReaderServerConfig) -> dict[str, Any]:
         "site_title": config.site_title,
         "features": {
             "chat": False,
-            "models": False,
+            "models": True,
             "jobs": False,
             "figures": False,
         },
@@ -123,6 +124,11 @@ def create_reader_handler(config: ReaderServerConfig):
         def do_GET(self) -> None:  # noqa: N802 - inherited API
             self._dispatch_get(self.path)
 
+        def do_POST(self) -> None:  # noqa: N802 - inherited API
+            length = int(self.headers.get("Content-Length", "0") or "0")
+            raw_body = self.rfile.read(length) if length else b"{}"
+            self._dispatch_post(self.path, raw_body)
+
         def _dispatch_get(self, request_path: str) -> None:
             parsed = urlparse(request_path)
             path = parsed.path
@@ -134,6 +140,11 @@ def create_reader_handler(config: ReaderServerConfig):
                 return
             if path == "/api/papers":
                 self._send_json(_papers_payload(config.site_dir))
+                return
+            if path == "/api/models":
+                from paper_search.reader_models import ReaderModelRegistry
+
+                self._send_json(ReaderModelRegistry(config.state_dir).public_config())
                 return
             if path.startswith("/api/"):
                 self._send_json({"error": "not_found", "path": path}, status=HTTPStatus.NOT_FOUND)
@@ -148,6 +159,49 @@ def create_reader_handler(config: ReaderServerConfig):
                 content_type = f"{content_type}; charset=utf-8"
             self._send_bytes(static_path.read_bytes(), content_type=content_type)
 
+        def _dispatch_post(self, request_path: str, raw_body: bytes) -> None:
+            parsed = urlparse(request_path)
+            path = parsed.path
+            try:
+                payload = json.loads(raw_body.decode("utf-8") or "{}")
+            except json.JSONDecodeError:
+                self._send_json({"error": "invalid_json"}, status=HTTPStatus.BAD_REQUEST)
+                return
+            if not isinstance(payload, dict):
+                self._send_json({"error": "invalid_json"}, status=HTTPStatus.BAD_REQUEST)
+                return
+
+            if path == "/api/models":
+                from paper_search.reader_models import ModelProvider, ReaderModelRegistry
+
+                registry = ReaderModelRegistry(config.state_dir)
+                try:
+                    registry.upsert_provider(ModelProvider.from_dict(payload))
+                except ValueError as exc:
+                    self._send_json({"error": "invalid_provider", "message": str(exc)}, status=HTTPStatus.BAD_REQUEST)
+                    return
+                self._send_json(registry.public_config())
+                return
+
+            if path.startswith("/api/models/") and path.endswith("/key"):
+                from paper_search.reader_models import ReaderModelRegistry
+
+                provider_id = path.removeprefix("/api/models/").removesuffix("/key").strip("/")
+                api_key = str(payload.get("key") or "")
+                registry = ReaderModelRegistry(config.state_dir)
+                try:
+                    registry.set_provider_key(provider_id, api_key)
+                except (KeyError, ValueError) as exc:
+                    self._send_json({"error": "invalid_key", "message": str(exc)}, status=HTTPStatus.BAD_REQUEST)
+                    return
+                self._send_json({"ok": True, "provider_id": provider_id, "has_key": True})
+                return
+
+            if path.startswith("/api/"):
+                self._send_json({"error": "not_found", "path": path}, status=HTTPStatus.NOT_FOUND)
+                return
+            self._send_json({"error": "method_not_allowed"}, status=HTTPStatus.METHOD_NOT_ALLOWED)
+
         def _send_json(self, payload: dict[str, Any] | list[Any], status: HTTPStatus = HTTPStatus.OK) -> None:
             self._send_bytes(_json_bytes(payload), status=status, content_type="application/json; charset=utf-8")
 
@@ -159,17 +213,22 @@ def create_reader_handler(config: ReaderServerConfig):
             self.wfile.write(body)
 
         @classmethod
-        def handle_test_request(cls, path: str) -> TestResponse:
+        def handle_test_request(cls, path: str, method: str = "GET", json_body: dict[str, Any] | None = None) -> TestResponse:
             """Exercise the handler without opening a network socket."""
 
             instance = cls.__new__(cls)
             instance.path = path
             instance.wfile = io.BytesIO()
+            instance.rfile = io.BytesIO(_json_bytes(json_body or {}))
+            instance.headers = {"Content-Length": str(len(instance.rfile.getvalue()))}
             header_buffer = _HeaderBuffer()
             instance.send_response = header_buffer.send_response  # type: ignore[method-assign]
             instance.send_header = header_buffer.send_header  # type: ignore[method-assign]
             instance.end_headers = header_buffer.end_headers  # type: ignore[method-assign]
-            instance._dispatch_get(path)
+            if method.upper() == "POST":
+                instance._dispatch_post(path, instance.rfile.getvalue())
+            else:
+                instance._dispatch_get(path)
             return TestResponse(status=header_buffer.status, headers=header_buffer.headers, body=instance.wfile.getvalue())
 
     return ReaderRequestHandler
@@ -208,11 +267,17 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--site-dir", default="private-reader-site")
     parser.add_argument("--profile", default="private", choices=["private", "public"])
     parser.add_argument("--site-title", default="Sidney Deep Paper Reader")
+    parser.add_argument("--state-dir", default=".reader")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
     args = parser.parse_args(argv)
     serve(
-        ReaderServerConfig(site_dir=Path(args.site_dir), profile=args.profile, site_title=args.site_title),
+        ReaderServerConfig(
+            site_dir=Path(args.site_dir),
+            profile=args.profile,
+            site_title=args.site_title,
+            state_dir=Path(args.state_dir),
+        ),
         host=args.host,
         port=args.port,
     )

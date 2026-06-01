@@ -5,5 +5,6 @@ exec python3 -m paper_search.reader_server \
   --site-dir private-reader-site \
   --profile private \
   --site-title 'Sidney Deep Paper Reader' \
+  --state-dir .reader \
   --host 127.0.0.1 \
   --port 8765
