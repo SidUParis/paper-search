@@ -18,6 +18,8 @@ from typing import Any, cast
 from urllib.parse import urlparse
 import unicodedata
 
+from paper_search.fulltext import pdf_cache_path
+from paper_search.reader_figures import extract_pdf_gallery
 from paper_search.notion_sync import get_notion_client
 from paper_search.topics import load_topics
 
@@ -49,6 +51,7 @@ class ReaderPaper:
     local_fulltext: str = ""
     local_document: str = ""
     tags: list[str] = field(default_factory=list)
+    figures: list[dict[str, Any]] = field(default_factory=list)
     status: str = ""
     updated_at: str = ""
 
@@ -187,6 +190,7 @@ def reader_paper_from_notion_page(
         local_fulltext=local_fulltext,
         local_document=local_document,
         tags=tags,
+        figures=[],
         status=status,
         updated_at=updated_at,
     )
@@ -313,6 +317,7 @@ def public_safe_paper(paper: ReaderPaper) -> ReaderPaper:
         local_fulltext="",
         local_document="",
         notebooklm_audio="",
+        figures=[],
         authors=_sanitize_public_list(paper.authors),
         tags=_sanitize_public_list(paper.tags),
     )
@@ -849,8 +854,25 @@ def render_site(
     for stale_html in output.glob("*.html"):
         stale_html.unlink()
     papers_for_profile = prepare_papers_for_profile(papers, profile)
+    enriched_papers: list[ReaderPaper] = []
+    for paper in papers_for_profile:
+        figures = list(paper.figures or [])
+        pdf_source = paper.local_document
+        if not pdf_source and paper.source_url:
+            cached_pdf = pdf_cache_path(paper.source_url)
+            if cached_pdf.exists():
+                pdf_source = str(cached_pdf)
+        if profile == "private" and pdf_source:
+            extracted = extract_pdf_gallery(
+                paper_id=paper.paper_id,
+                pdf_path=pdf_source,
+                output_assets_dir=output / "assets" / "paper-assets",
+            )
+            if extracted:
+                figures = extracted
+        enriched_papers.append(replace(paper, figures=figures))
     papers_sorted = sorted(
-        papers_for_profile,
+        enriched_papers,
         key=lambda p: (p.updated_at or "", p.year or "", p.title.lower()),
         reverse=True,
     )

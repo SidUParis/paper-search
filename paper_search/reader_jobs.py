@@ -16,7 +16,7 @@ from dotenv import dotenv_values
 from paper_search.topics import list_topics
 
 ALLOWED_UPDATE_SOURCES = {"all", "acl", "arxiv", "scholar"}
-ALLOWED_ACTIONS = {"update", "update-all", "fulltext", "regenerate", "fulltext-and-regenerate"}
+ALLOWED_ACTIONS = {"update", "update-all", "fulltext", "regenerate", "fulltext-and-regenerate", "extract-figures"}
 
 
 @dataclass(slots=True)
@@ -132,7 +132,7 @@ def build_commands(payload: dict[str, Any], *, site_dir: Path, profile: str, sit
             commands.extend(_topic_commands({**payload, "topic": topic_slug, "source": source}))
     elif action in {"fulltext", "fulltext-and-regenerate"}:
         commands.append([sys.executable, "-m", "paper_search.cli", "summarize-fulltext-all", "--source", source, "--limit", str(limit)])
-    if action in {"regenerate", "fulltext-and-regenerate"}:
+    if action in {"regenerate", "fulltext-and-regenerate", "extract-figures"}:
         commands.append([
             sys.executable,
             "-m",

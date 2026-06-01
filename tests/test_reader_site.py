@@ -311,3 +311,94 @@ def test_private_profile_does_not_emit_unsafe_href_schemes(tmp_path: Path):
 
     assert "javascript:" not in combined
     assert "data:text/html" not in combined
+
+
+def test_private_render_site_extracts_pdf_images_into_gallery_assets(tmp_path: Path):
+    import base64
+    import json
+
+    import pymupdf
+
+    pdf_path = tmp_path / "source.pdf"
+    png_bytes = base64.b64decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII="
+    )
+    doc = pymupdf.open()
+    page = doc.new_page(width=220, height=180)
+    page.insert_text((24, 32), "Table 1: Bias scores by language", fontsize=10)
+    page.insert_image(pymupdf.Rect(40, 50, 140, 140), stream=png_bytes)
+    doc.save(pdf_path)
+    doc.close()
+
+    render_site(
+        [ReaderPaper(paper_id="p1", title="PDF Figure Paper", local_document=str(pdf_path))],
+        tmp_path / "site",
+        site_title="Private Reader",
+        profile="private",
+    )
+
+    papers = json.loads((tmp_path / "site" / "data" / "papers.json").read_text(encoding="utf-8"))
+    figures = papers[0]["figures"]
+    assert figures
+    assert figures[0]["kind"] == "image"
+    assert figures[0]["src"].startswith("assets/paper-assets/p1/")
+    assert (tmp_path / "site" / figures[0]["src"]).exists()
+    assert "Figure & Table Gallery" in (tmp_path / "site" / "paper.html").read_text(encoding="utf-8")
+    assert "renderFigureGallery" in (tmp_path / "site" / "assets" / "app.js").read_text(encoding="utf-8")
+
+
+def test_public_render_site_does_not_expose_extracted_pdf_assets(tmp_path: Path):
+    import base64
+    import json
+
+    import pymupdf
+
+    pdf_path = tmp_path / "secret.pdf"
+    png_bytes = base64.b64decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII="
+    )
+    doc = pymupdf.open()
+    page = doc.new_page(width=120, height=120)
+    page.insert_image(pymupdf.Rect(20, 20, 80, 80), stream=png_bytes)
+    doc.save(pdf_path)
+    doc.close()
+
+    render_site(
+        [ReaderPaper(paper_id="p-secret", title="Public PDF", local_document=str(pdf_path))],
+        tmp_path / "public-site",
+        site_title="Public Reader",
+        profile="public",
+    )
+
+    papers = json.loads((tmp_path / "public-site" / "data" / "papers.json").read_text(encoding="utf-8"))
+    assert papers[0]["figures"] == []
+    assert not (tmp_path / "public-site" / "assets" / "paper-assets").exists()
+
+def test_private_render_site_uses_existing_source_url_pdf_cache_for_gallery(tmp_path: Path, monkeypatch):
+    import base64
+    import json
+
+    import pymupdf
+    import paper_search.reader_site as reader_site
+
+    cache_dir = tmp_path / "cache"
+    monkeypatch.setattr(reader_site, "pdf_cache_path", lambda _url: cache_dir / "cached.pdf")
+    cache_dir.mkdir()
+    png_bytes = base64.b64decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII="
+    )
+    doc = pymupdf.open()
+    page = doc.new_page(width=120, height=120)
+    page.insert_image(pymupdf.Rect(20, 20, 80, 80), stream=png_bytes)
+    doc.save(cache_dir / "cached.pdf")
+    doc.close()
+
+    render_site(
+        [ReaderPaper(paper_id="cached-paper", title="Cached PDF", source_url="https://arxiv.org/abs/2601.00001")],
+        tmp_path / "site",
+        site_title="Private Reader",
+        profile="private",
+    )
+
+    papers = json.loads((tmp_path / "site" / "data" / "papers.json").read_text(encoding="utf-8"))
+    assert papers[0]["figures"]
