@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import html
+import json
 import os
 import re
 from datetime import datetime
@@ -15,6 +16,7 @@ import yaml
 DEFAULT_VAULT = Path(os.environ.get("OBSIDIAN_VAULT_PATH", str(Path.home() / "Documents" / "Obsidian Vault"))).expanduser()
 DEFAULT_OUT_MD = DEFAULT_VAULT / "dashboards" / "daily-digest.md"
 DEFAULT_OUT_HTML = DEFAULT_VAULT / "dashboards" / "daily-digest.email.html"
+DEFAULT_READER_FEATURED_JSON = Path("private-reader-site") / "data" / "daily-featured.json"
 CROSS_LINGUAL_NOTE = DEFAULT_VAULT / "methods" / "cross-lingual-evaluation.md"
 REVIEW_MAP_NOTE = DEFAULT_VAULT / "reviews" / "multilingual-bias-benchmark-landscape-map.md"
 TOP_K = 2
@@ -190,6 +192,7 @@ def paper_payload(paper: Paper) -> dict[str, Any]:
         next_action = "今天可读，优先看方法与实验部分。"
 
     return {
+        "paper_id": paper.paper_id,
         "title": paper.title,
         "year": paper.year,
         "venue": paper.venue,
@@ -202,6 +205,22 @@ def paper_payload(paper: Paper) -> dict[str, Any]:
         "source_url": paper.source_url,
     }
 
+
+
+def featured_json_payload(payloads: list[dict[str, Any]], generated_at: str) -> dict[str, Any]:
+    """Payload consumed by the reader Discovery page.
+
+    The reader's generated `papers.json` uses Notion page IDs while the daily
+    digest is selected from Obsidian paper-note IDs. Include title/source URL so
+    the frontend can resolve the corresponding reader paper robustly.
+    """
+
+    return {
+        "generated_at": generated_at,
+        "source": "daily_digest_top2",
+        "featured": payloads[:1],
+        "daily": payloads[:TOP_K],
+    }
 
 
 def markdown_from_payload(payloads: list[dict[str, Any]], generated_at: str) -> str:
@@ -316,6 +335,7 @@ def main() -> None:
     parser.add_argument("--vault", default=str(DEFAULT_VAULT))
     parser.add_argument("--out-md", default=str(DEFAULT_OUT_MD))
     parser.add_argument("--out-html", default=str(DEFAULT_OUT_HTML))
+    parser.add_argument("--out-featured-json", default=str(DEFAULT_READER_FEATURED_JSON))
     args = parser.parse_args()
 
     vault = Path(args.vault).expanduser()
@@ -337,16 +357,21 @@ def main() -> None:
     generated_at = datetime.now().astimezone().strftime("%Y-%m-%d (%a) %H:%M %Z")
     md = markdown_from_payload(payloads, generated_at)
     html_doc = html_from_markdown(md)
+    featured_doc = featured_json_payload(payloads, generated_at)
 
     out_md = Path(args.out_md).expanduser()
     out_html = Path(args.out_html).expanduser()
+    out_featured_json = Path(args.out_featured_json).expanduser()
     out_md.parent.mkdir(parents=True, exist_ok=True)
     out_html.parent.mkdir(parents=True, exist_ok=True)
+    out_featured_json.parent.mkdir(parents=True, exist_ok=True)
     out_md.write_text(md + "\n", encoding="utf-8")
     out_html.write_text(html_doc + "\n", encoding="utf-8")
+    out_featured_json.write_text(json.dumps(featured_doc, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
     print(f"WROTE_MD={out_md}")
     print(f"WROTE_HTML={out_html}")
+    print(f"WROTE_FEATURED_JSON={out_featured_json}")
     print("SELECTED=" + " | ".join(p.title for p in selected))
 
 
