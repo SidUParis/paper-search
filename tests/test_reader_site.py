@@ -151,6 +151,19 @@ def test_ai_reader_opens_figures_in_zoomable_lightbox_not_download_links(tmp_pat
     assert "target=\"_blank\" rel=\"noreferrer\"><img" not in app_js
 
 
+def test_reader_stylesheet_is_not_line_numbered_or_truncated(tmp_path: Path):
+    papers = [ReaderPaper(paper_id="p1", title="Bias Paper", summary="Summary")]
+
+    render_site(papers, tmp_path, site_title="Test Reader")
+
+    css = (tmp_path / "assets" / "style.css").read_text(encoding="utf-8")
+    assert not css.startswith("     1|")
+    assert "[truncated]" not in css
+    assert css.lstrip().startswith("@import")
+    assert ".reader-app" in css
+    assert ".figure-viewer" in css
+
+
 def test_render_site_adds_per_paper_ask_panel_with_presets(tmp_path: Path):
     papers = [ReaderPaper(paper_id="p1", title="Bias Paper", summary="Summary")]
 
