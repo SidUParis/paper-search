@@ -103,6 +103,10 @@ def test_render_site_adds_global_ai_terminal(tmp_path: Path):
     app_js = (tmp_path / "assets" / "app.js").read_text(encoding="utf-8")
     assert "AI Reader" in index
     assert "AI Reader" in ai
+    assert "ai-side-nav" in ai
+    assert "<span>01</span>Discovery" in ai
+    assert "<span>03</span>AI Reader" in ai
+    assert "Unify AI Reader chrome" in (tmp_path / "assets" / "style.css").read_text(encoding="utf-8")
     assert "id=\"chat-form\"" in ai
     assert "note-save-card" not in ai
     assert "Save current AI answer" not in ai
