@@ -409,11 +409,10 @@ def _detail_page(paper: ReaderPaper, site_title: str) -> str:
       <div id="chat-log" class="chat-log">
         <div class="chat-msg assistant">我已经准备好阅读《{escape(paper.title)}》。可以点上面的预设问题，或直接问你自己的问题。</div>
       </div>
-      <form id="global-chat-form" class="chat-form" data-paper-key="{paper_key}">
-        <div class="field"><label for="chat-provider">Provider</label><select id="chat-provider" aria-label="LLM provider"><option value="deepseek">DeepSeek</option><option value="openrouter">OpenRouter</option><option value="openai">OpenAI</option></select></div>
-        <div class="field model-field"><label for="chat-model">Model</label><input id="chat-model" aria-label="Model name" value="deepseek-v4-flash" /></div>
-        <textarea id="chat-question" placeholder="Ask about this paper… / 问这篇论文" rows="4"></textarea>
+      <form id="global-chat-form" class="composer-form" data-paper-key="{paper_key}">
+        <textarea id="chat-question" placeholder="Ask about this paper… / 问这篇论文" rows="3"></textarea>
         <button type="submit">Ask this paper</button>
+        <div class="composer-meta">Read in Context: metadata + fulltext excerpt + related papers；模型配置在首页 Model Settings。</div>
       </form>
     </section>
     """
@@ -463,7 +462,7 @@ def _detail_page(paper: ReaderPaper, site_title: str) -> str:
       </ul>
     </section>
   </main>
-  <script src="../assets/app.js?v=ai-reader-2"></script>
+  <script src="../assets/app.js?v=ai-reader-3"></script>
 </body>
 </html>
 """
@@ -486,113 +485,164 @@ def _index_page(papers: list[ReaderPaper], site_title: str, slug_map: dict[str, 
   <title>{escape(site_title)}</title>
   <link rel="stylesheet" href="assets/style.css" />
 </head>
-<body>
-  <aside class="sidebar">
-    <h1>{escape(site_title)}</h1>
-    <p>Notion × paper-search × Obsidian 深度论文阅读站</p>
-    <div class="profile-badge">{escape(profile.upper())}</div>
-    <input id="search" type="search" placeholder="Search title, summary, tags…" />
-    <label>Topic <select id="topic"><option value="">All</option>{topic_options}</select></label>
-    <label>Source <select id="source"><option value="">All</option>{source_options}</select></label>
-    <a class="small-link" href="data/papers.json">Download metadata JSON</a>
-  </aside>
-  <main class="content">
-    <section class="hero">
-      <div class="eyebrow">Generated {escape(generated)}</div>
-      <h2>Daily / Deep Paper Reader</h2>
-      <p>一个跨平台可读的 PhD 论文工作台：Notion 管元数据，paper-search 做深度处理，Obsidian 保存本地知识资产，这里负责阅读体验。</p>
-      <p class="profile-note">{escape(profile_note)}</p>
-      <div class="stats"><span>{len(papers)} Papers</span><span>{len(topics)} Topics</span><span>{len(sources)} Sources</span><span>{deep_count} Deep Sections</span></div>
+<body class="reader-home">
+  <header class="app-header">
+    <div>
+      <div class="eyebrow">Generated {escape(generated)} · {escape(profile.upper())}</div>
+      <h1>{escape(site_title)}</h1>
+      <p>Notion 管元数据，paper-search 做深度处理，Obsidian 保存知识资产；网页端专注 AI 阅读体验。</p>
+    </div>
+    <a class="metadata-link" href="data/papers.json">Metadata JSON</a>
+  </header>
+
+  <main class="app-main">
+    <nav class="workspace-tabs" aria-label="Reader workspaces">
+      <button type="button" class="workspace-tab active" data-view-target="ai-view">AI 阅读 / Chat</button>
+      <button type="button" class="workspace-tab" data-view-target="library-view">Paper Cards / Library</button>
+      <button type="button" class="workspace-tab" data-view-target="settings-view">Model Settings</button>
+    </nav>
+
+    <section id="ai-view" class="workspace-view active">
+      <div class="reader-dashboard">
+        <section class="ai-terminal hero-terminal" aria-label="AI Reading Terminal">
+          <div class="terminal-header">
+            <div>
+              <div class="eyebrow">Read in Context · Whole library</div>
+              <h2>AI Reading Terminal</h2>
+              <p class="terminal-subtitle">像 ChatGPT / Claude 一样直接问你的论文库。后端会先检索相关论文，再用服务端模型 grounded 回答。</p>
+            </div>
+            <span id="chat-status" class="terminal-status">ready</span>
+          </div>
+          <div class="preset-row">
+            <button type="button" class="preset-chip" data-prompt="哪些论文和 BBQ / FrenchBBQ / MultilingualBBQ 最相关？">BBQ 相关论文</button>
+            <button type="button" class="preset-chip" data-prompt="请按和我的 LLM bias 博士课题相关性排序推荐 5 篇论文，并解释原因。">PhD relevance ranking</button>
+            <button type="button" class="preset-chip" data-prompt="今天最值得精读的论文是哪几篇？请给中文理由。">今日精读建议</button>
+          </div>
+          <div id="chat-log" class="chat-log">
+            <div class="chat-msg assistant">你好，我是你的私有论文阅读助手。可以问整个 library，也可以进入单篇论文后问贡献、方法、局限和与你 PhD 的关系。</div>
+          </div>
+          <form id="global-chat-form" class="composer-form">
+            <textarea id="chat-question" placeholder="Ask across your paper library… / 用中文问你的论文库" rows="3"></textarea>
+            <button type="submit">Ask AI</button>
+            <div class="composer-meta">当前模型：<span data-model-label>DeepSeek · deepseek-v4-flash</span> · API key 只在服务端保存</div>
+          </form>
+        </section>
+
+        <aside class="reader-side-panel">
+          <section class="mini-card">
+            <h3>Library Snapshot</h3>
+            <div class="stats vertical"><span>{len(papers)} Papers</span><span>{len(topics)} Topics</span><span>{len(sources)} Sources</span><span>{deep_count} Deep Sections</span></div>
+          </section>
+          <section class="mini-card">
+            <h3>Workflow</h3>
+            <p class="profile-note">{escape(profile_note)}</p>
+          </section>
+        </aside>
+      </div>
     </section>
-    <section class="ai-terminal" aria-label="AI Reading Terminal">
-      <div class="terminal-header">
+
+    <section id="library-view" class="workspace-view">
+      <div class="library-toolbar">
         <div>
-          <div class="eyebrow">Read in Context · Whole library</div>
-          <h2>AI Reading Terminal</h2>
-          <p class="terminal-subtitle">像 ChatGPT/Claude 一样问你的论文库：先检索相关论文，再用服务端 LLM grounded 回答。</p>
+          <div class="eyebrow">Paper Library</div>
+          <h2>Cards are separated from AI chat</h2>
         </div>
-        <span id="chat-status" class="terminal-status">ready</span>
+        <div class="library-controls">
+          <input id="search" type="search" placeholder="Search title, summary, tags…" />
+          <label>Topic <select id="topic"><option value="">All</option>{topic_options}</select></label>
+          <label>Source <select id="source"><option value="">All</option>{source_options}</select></label>
+        </div>
       </div>
-      <div class="preset-row">
-        <button type="button" class="preset-chip" data-prompt="哪些论文和 BBQ / FrenchBBQ / MultilingualBBQ 最相关？">BBQ 相关论文</button>
-        <button type="button" class="preset-chip" data-prompt="请按和我的 LLM bias 博士课题相关性排序推荐 5 篇论文，并解释原因。">PhD relevance ranking</button>
-        <button type="button" class="preset-chip" data-prompt="今天最值得精读的论文是哪几篇？请给中文理由。">今日精读建议</button>
-      </div>
-      <div id="chat-log" class="chat-log">
-        <div class="chat-msg assistant">你好，我是你的私有论文阅读助手。可以问：哪些论文和 MultilingualBBQ 最相关？或者打开具体 paper 后问贡献、方法、局限。</div>
-      </div>
-      <form id="global-chat-form" class="chat-form">
-        <div class="field"><label for="chat-provider">Provider</label><select id="chat-provider" aria-label="LLM provider"><option value="deepseek">DeepSeek</option><option value="openrouter">OpenRouter</option><option value="openai">OpenAI</option></select></div>
-        <div class="field model-field"><label for="chat-model">Model</label><input id="chat-model" aria-label="Model name" value="deepseek-v4-flash" /></div>
-        <textarea id="chat-question" placeholder="Ask across your paper library… / 用中文问你的论文库" rows="4"></textarea>
-        <button type="submit">Ask AI</button>
-      </form>
+      <section id="papers" class="paper-grid">
+        {cards}
+      </section>
     </section>
-    <section id="papers" class="paper-grid">
-      {cards}
+
+    <section id="settings-view" class="workspace-view">
+      <section class="settings-panel">
+        <div class="eyebrow">Server-side model configuration</div>
+        <h2>Model Settings</h2>
+        <p>这里先放轻量选择器；API key 不进入浏览器。完整 provider 管理会在 Admin dashboard 阶段接上。</p>
+        <div class="settings-grid">
+          <label>Provider<select id="chat-provider" aria-label="LLM provider"><option value="deepseek">DeepSeek</option><option value="openrouter">OpenRouter</option><option value="openai">OpenAI</option></select></label>
+          <label>Model<input id="chat-model" aria-label="Model name" value="deepseek-v4-flash" /></label>
+        </div>
+      </section>
     </section>
   </main>
-  <script src="assets/app.js?v=ai-reader-2"></script>
+  <script src="assets/app.js?v=ai-reader-3"></script>
 </body>
 </html>
 """
 
-
 STYLE_CSS = """
-:root { color-scheme: dark; --bg:#080b12; --panel:#111827; --panel2:#172033; --text:#e5e7eb; --muted:#9ca3af; --brand:#8b5cf6; --line:#263244; }
+:root { color-scheme: dark; --bg:#070a12; --panel:#101827; --panel2:#162033; --text:#e5e7eb; --muted:#9ca3af; --brand:#8b5cf6; --brand2:#0ea5e9; --line:#263244; --soft:rgba(148,163,184,.13); }
 * { box-sizing: border-box; }
-body { margin:0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: radial-gradient(circle at top left, #1e1b4b 0, #080b12 36rem); color:var(--text); }
+body { margin:0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: radial-gradient(circle at top left, #1e1b4b 0, #070a12 38rem); color:var(--text); }
 a { color:#c4b5fd; text-decoration:none; }
 a:hover { text-decoration:underline; }
-.sidebar { position:fixed; inset:0 auto 0 0; width:310px; padding:28px; background:rgba(17,24,39,.9); border-right:1px solid var(--line); backdrop-filter: blur(12px); overflow:auto; }
-.sidebar h1 { margin:0 0 8px; font-size:26px; }
-.sidebar p, .meta, .eyebrow { color:var(--muted); }
-.sidebar input, .sidebar select { width:100%; margin:8px 0 16px; padding:10px 12px; border:1px solid var(--line); border-radius:12px; background:#0b1020; color:var(--text); }
-.sidebar label { display:block; color:var(--muted); font-size:13px; }
-.small-link { display:inline-block; margin-top:8px; font-size:13px; }
-.profile-badge { display:inline-flex; margin:10px 0 16px; padding:5px 9px; border-radius:999px; border:1px solid rgba(34,211,238,.35); color:#a5f3fc; background:rgba(8,145,178,.14); font-size:12px; letter-spacing:.08em; }
-.stats { display:flex; flex-wrap:wrap; gap:10px; margin-top:18px; }
-.stats span { border:1px solid rgba(196,181,253,.28); background:rgba(15,23,42,.55); padding:8px 10px; border-radius:12px; color:#ddd6fe; font-size:13px; }
-.profile-note { color:#cbd5e1; }
-.content { margin-left:310px; padding:34px; }
-.hero { background:linear-gradient(135deg, rgba(139,92,246,.22), rgba(14,165,233,.12)); border:1px solid var(--line); border-radius:24px; padding:28px; margin-bottom:24px; }
-.hero h2, .hero h1 { margin:6px 0 10px; font-size:34px; }
-.paper-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(310px,1fr)); gap:18px; }
-.ai-terminal { background:linear-gradient(180deg, rgba(15,23,42,.92), rgba(17,24,39,.82)); border:1px solid rgba(139,92,246,.35); border-radius:24px; padding:22px; margin-bottom:24px; box-shadow:0 20px 60px rgba(0,0,0,.22); }
-.terminal-header { display:flex; justify-content:space-between; gap:18px; align-items:flex-start; margin-bottom:14px; }
-.terminal-header h2 { margin:4px 0 0; font-size:26px; }
-.terminal-subtitle { margin:8px 0 0; color:#cbd5e1; max-width:760px; line-height:1.6; }
-.terminal-status { border:1px solid rgba(34,211,238,.35); color:#a5f3fc; background:rgba(8,145,178,.14); border-radius:999px; padding:5px 10px; font-size:12px; }
+.reader-home { min-height:100vh; }
+.app-header { display:flex; justify-content:space-between; gap:24px; align-items:flex-start; padding:26px 36px 18px; border-bottom:1px solid var(--line); background:rgba(7,10,18,.78); backdrop-filter:blur(18px); position:sticky; top:0; z-index:20; }
+.app-header h1 { margin:5px 0 8px; font-size:30px; letter-spacing:-.03em; }
+.app-header p { margin:0; color:#cbd5e1; max-width:900px; }
+.metadata-link { white-space:nowrap; border:1px solid rgba(196,181,253,.28); border-radius:999px; padding:9px 12px; background:rgba(139,92,246,.11); }
+.app-main { max-width:1380px; margin:0 auto; padding:22px 30px 60px; }
+.workspace-tabs { display:flex; gap:10px; margin:0 0 18px; padding:8px; border:1px solid var(--line); background:rgba(15,23,42,.72); border-radius:18px; width:max-content; max-width:100%; overflow:auto; }
+.workspace-tab { border:1px solid transparent; border-radius:13px; padding:10px 14px; background:transparent; color:#cbd5e1; font-weight:700; cursor:pointer; white-space:nowrap; }
+.workspace-tab.active { background:linear-gradient(135deg, rgba(139,92,246,.35), rgba(14,165,233,.22)); border-color:rgba(196,181,253,.34); color:white; }
+.workspace-view { display:none; }
+.workspace-view.active { display:block; }
+.reader-dashboard { display:grid; grid-template-columns:minmax(0,1fr) 320px; gap:20px; align-items:start; }
+.ai-terminal { background:linear-gradient(180deg, rgba(15,23,42,.96), rgba(17,24,39,.88)); border:1px solid rgba(139,92,246,.38); border-radius:28px; padding:24px; box-shadow:0 24px 70px rgba(0,0,0,.28); }
+.hero-terminal { min-height:670px; display:flex; flex-direction:column; }
+.terminal-header { display:flex; justify-content:space-between; gap:18px; align-items:flex-start; margin-bottom:16px; }
+.terminal-header h2 { margin:4px 0 0; font-size:34px; letter-spacing:-.04em; }
+.terminal-subtitle { margin:8px 0 0; color:#cbd5e1; max-width:820px; line-height:1.65; }
+.terminal-status { border:1px solid rgba(34,211,238,.35); color:#a5f3fc; background:rgba(8,145,178,.14); border-radius:999px; padding:6px 11px; font-size:12px; }
+.eyebrow { color:#93c5fd; text-transform:uppercase; letter-spacing:.1em; font-size:12px; font-weight:800; }
 .preset-row { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0 14px; }
-.preset-chip { border:1px solid rgba(196,181,253,.36); border-radius:999px; color:#ddd6fe; background:rgba(139,92,246,.14); padding:7px 11px; font-size:13px; cursor:pointer; }
+.preset-chip { border:1px solid rgba(196,181,253,.36); border-radius:999px; color:#ddd6fe; background:rgba(139,92,246,.14); padding:8px 12px; font-size:13px; cursor:pointer; }
 .preset-chip:hover { background:rgba(139,92,246,.25); border-color:rgba(196,181,253,.58); }
-.chat-log { display:flex; flex-direction:column; gap:10px; max-height:420px; overflow:auto; padding:12px; border:1px solid var(--line); border-radius:18px; background:#080b12; }
-.chat-msg { max-width:88%; padding:11px 13px; border-radius:16px; white-space:pre-wrap; line-height:1.6; }
-.chat-msg.user { align-self:flex-end; background:rgba(139,92,246,.26); color:#f5f3ff; }
-.chat-msg.assistant { align-self:flex-start; background:rgba(30,41,59,.85); color:#dbeafe; }
-.chat-msg.error { align-self:flex-start; background:rgba(127,29,29,.6); color:#fecaca; }
-.chat-form { display:grid; grid-template-columns:minmax(140px,180px) minmax(220px,1fr) auto; gap:10px; margin-top:14px; align-items:end; }
-.chat-form .field { display:flex; flex-direction:column; gap:5px; }
-.chat-form label { color:#94a3b8; font-size:12px; letter-spacing:.02em; }
-.chat-form textarea { grid-column:1 / -1; min-height:118px; resize:vertical; }
-.chat-form input, .chat-form select, .chat-form textarea { width:100%; padding:11px 12px; border:1px solid var(--line); border-radius:12px; background:#0b1020; color:var(--text); outline:none; font:inherit; }
-.chat-form input:focus, .chat-form select:focus, .chat-form textarea:focus { border-color:rgba(139,92,246,.75); box-shadow:0 0 0 3px rgba(139,92,246,.18); }
-.chat-form button { min-height:43px; border:0; border-radius:12px; padding:10px 18px; background:linear-gradient(135deg,#8b5cf6,#0ea5e9); color:white; font-weight:700; cursor:pointer; }
-.chat-form button:disabled { opacity:.62; cursor:wait; }
+.chat-log { flex:1; display:flex; flex-direction:column; gap:12px; min-height:340px; max-height:560px; overflow:auto; padding:16px; border:1px solid var(--line); border-radius:22px; background:rgba(3,7,18,.72); }
+.chat-msg { max-width:84%; padding:12px 14px; border-radius:18px; white-space:pre-wrap; line-height:1.68; }
+.chat-msg.user { align-self:flex-end; background:linear-gradient(135deg, rgba(139,92,246,.38), rgba(14,165,233,.24)); color:#f8fafc; }
+.chat-msg.assistant { align-self:flex-start; background:rgba(30,41,59,.92); color:#dbeafe; }
+.chat-msg.error { align-self:flex-start; background:rgba(127,29,29,.68); color:#fecaca; }
+.composer-form { margin-top:14px; display:grid; grid-template-columns:1fr auto; gap:10px; align-items:end; }
+.composer-form textarea { min-height:90px; resize:vertical; grid-column:1 / 2; }
+.composer-form textarea, .settings-grid input, .settings-grid select, .library-controls input, .library-controls select { width:100%; padding:12px 13px; border:1px solid var(--line); border-radius:14px; background:#0b1020; color:var(--text); outline:none; font:inherit; }
+.composer-form textarea:focus, .settings-grid input:focus, .settings-grid select:focus, .library-controls input:focus, .library-controls select:focus { border-color:rgba(139,92,246,.75); box-shadow:0 0 0 3px rgba(139,92,246,.18); }
+.composer-form button { min-height:48px; border:0; border-radius:14px; padding:12px 22px; background:linear-gradient(135deg,#8b5cf6,#0ea5e9); color:white; font-weight:800; cursor:pointer; }
+.composer-form button:disabled { opacity:.62; cursor:wait; }
+.composer-meta { grid-column:1 / -1; color:#94a3b8; font-size:12px; }
+.reader-side-panel { display:flex; flex-direction:column; gap:14px; }
+.mini-card, .settings-panel, .library-toolbar { border:1px solid var(--line); border-radius:24px; padding:20px; background:rgba(15,23,42,.76); }
+.mini-card h3, .settings-panel h2, .library-toolbar h2 { margin:6px 0 12px; }
+.stats { display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; }
+.stats.vertical { flex-direction:column; }
+.stats span { border:1px solid rgba(196,181,253,.28); background:rgba(15,23,42,.55); padding:9px 11px; border-radius:13px; color:#ddd6fe; font-size:13px; }
+.profile-note, .meta { color:#cbd5e1; line-height:1.65; }
+.library-toolbar { display:flex; justify-content:space-between; align-items:end; gap:18px; margin-bottom:18px; }
+.library-controls { display:grid; grid-template-columns:minmax(220px,320px) minmax(140px,180px) minmax(140px,180px); gap:10px; align-items:end; }
+.library-controls label, .settings-grid label { color:#94a3b8; font-size:12px; display:flex; flex-direction:column; gap:5px; }
+.paper-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(310px,1fr)); gap:18px; }
 .paper-card { background:rgba(17,24,39,.78); border:1px solid var(--line); border-radius:20px; padding:18px; min-height:220px; box-shadow:0 16px 40px rgba(0,0,0,.18); }
 .paper-title { display:block; font-weight:750; font-size:18px; line-height:1.35; margin-bottom:10px; color:#f5f3ff; }
 .paper-card p { color:#cbd5e1; line-height:1.55; }
 .tags { display:flex; flex-wrap:wrap; gap:7px; margin-top:12px; }
 .tag { display:inline-flex; padding:4px 8px; border:1px solid rgba(196,181,253,.3); border-radius:999px; color:#ddd6fe; background:rgba(139,92,246,.12); font-size:12px; }
+.settings-grid { display:grid; grid-template-columns:repeat(2,minmax(220px,1fr)); gap:12px; margin-top:14px; }
 .topbar { padding:18px 28px; border-bottom:1px solid var(--line); background:rgba(17,24,39,.82); position:sticky; top:0; }
-.paper-detail { max-width:920px; margin:0 auto; padding:30px 24px 80px; }
+.paper-detail { max-width:980px; margin:0 auto; padding:30px 24px 80px; }
+.hero { background:linear-gradient(135deg, rgba(139,92,246,.22), rgba(14,165,233,.12)); border:1px solid var(--line); border-radius:24px; padding:28px; margin-bottom:24px; }
+.hero h2, .hero h1 { margin:6px 0 10px; font-size:34px; }
 .paper-detail section { background:rgba(17,24,39,.72); border:1px solid var(--line); border-radius:20px; padding:22px; margin:18px 0; }
 .paper-detail p { line-height:1.75; white-space:pre-wrap; }
+.paper-ask-panel .composer-form { grid-template-columns:1fr auto; }
 code { color:#bae6fd; word-break:break-all; }
 .hidden { display:none !important; }
-@media (max-width: 800px) { .sidebar { position:static; width:auto; border-right:0; border-bottom:1px solid var(--line); } .content { margin-left:0; padding:18px; } .hero h1, .hero h2 { font-size:26px; } .chat-form { grid-template-columns:1fr; } .chat-form textarea { grid-column:auto; } }
+@media (max-width: 980px) { .app-header { position:static; padding:22px; flex-direction:column; } .app-main { padding:16px; } .reader-dashboard { grid-template-columns:1fr; } .library-toolbar { flex-direction:column; align-items:stretch; } .library-controls { grid-template-columns:1fr; } .settings-grid { grid-template-columns:1fr; } .composer-form { grid-template-columns:1fr; } .composer-form textarea { grid-column:auto; } .terminal-header h2 { font-size:28px; } }
 """.strip()
-
 
 APP_JS = """
 const search = document.getElementById('search');
@@ -613,10 +663,30 @@ function applyFilters() {
 }
 [search, topic, source].forEach(el => el && el.addEventListener('input', applyFilters));
 
+document.querySelectorAll('.workspace-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    const target = tab.dataset.viewTarget;
+    document.querySelectorAll('.workspace-tab').forEach(item => item.classList.toggle('active', item === tab));
+    document.querySelectorAll('.workspace-view').forEach(view => view.classList.toggle('active', view.id === target));
+  });
+});
+
 const chatForm = document.getElementById('global-chat-form');
 const chatLog = document.getElementById('chat-log');
 const chatStatus = document.getElementById('chat-status');
 const chatQuestion = document.getElementById('chat-question');
+const providerEl = document.getElementById('chat-provider');
+const modelEl = document.getElementById('chat-model');
+const modelLabel = document.querySelector('[data-model-label]');
+function syncModelLabel() {
+  if (!modelLabel) return;
+  const providerText = providerEl?.selectedOptions?.[0]?.textContent || providerEl?.value || 'provider';
+  const modelText = modelEl?.value || 'default model';
+  modelLabel.textContent = `${providerText} · ${modelText}`;
+}
+[providerEl, modelEl].forEach(el => el && el.addEventListener('input', syncModelLabel));
+syncModelLabel();
+
 function addChatMessage(role, text) {
   if (!chatLog) return;
   const msg = document.createElement('div');
@@ -635,8 +705,6 @@ document.querySelectorAll('.preset-chip').forEach(button => {
 chatForm?.addEventListener('submit', async (event) => {
   event.preventDefault();
   const questionEl = document.getElementById('chat-question');
-  const providerEl = document.getElementById('chat-provider');
-  const modelEl = document.getElementById('chat-model');
   const submitButton = chatForm.querySelector('button[type="submit"]');
   const question = (questionEl?.value || '').trim();
   const paperKey = chatForm.dataset.paperKey || document.querySelector('[data-paper-key]')?.dataset.paperKey || '';
@@ -650,7 +718,8 @@ chatForm?.addEventListener('submit', async (event) => {
       question,
       provider_id: providerEl?.value || 'deepseek',
       model: modelEl?.value || '',
-      mode: paperKey ? 'balanced' : 'library'
+      mode: paperKey ? 'balanced' : 'library',
+      max_tokens: paperKey ? 2400 : 4000
     };
     if (paperKey) body.paper_key = paperKey;
     const response = await fetch('/api/chat', {

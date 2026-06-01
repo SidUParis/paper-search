@@ -86,7 +86,8 @@ def _default_client_factory(**kwargs: Any) -> Any:
 
 def _extract_answer(response: Any) -> str:
     try:
-        content = response.choices[0].message.content
+        message = response.choices[0].message
+        content = message.content
     except (AttributeError, IndexError, TypeError) as exc:
         raise RuntimeError("unexpected chat completion response shape") from exc
     if isinstance(content, list):
@@ -99,9 +100,17 @@ def _extract_answer(response: Any) -> str:
                 text_parts.append(str(item))
         content = "".join(text_parts)
     answer = str(content or "").strip()
-    if not answer:
-        raise RuntimeError("model returned an empty answer")
-    return answer
+    if answer:
+        return answer
+
+    # DeepSeek reasoning models can spend the whole token budget in
+    # reasoning_content and leave message.content empty. Returning a rough answer
+    # is better UX than surfacing a dead-end browser error; the frontend also now
+    # asks for a larger token budget to make this rare.
+    reasoning = str(getattr(message, "reasoning_content", "") or "").strip()
+    if reasoning:
+        return "模型只返回了推理草稿、没有生成最终答复；下面是可读版草稿：\n\n" + reasoning
+    raise RuntimeError("model returned an empty answer")
 
 
 def generate_chat_response(
@@ -119,7 +128,7 @@ def generate_chat_response(
     paper_key_raw = payload.get("paper_key") or payload.get("paper_id") or payload.get("slug")
     paper_key = str(paper_key_raw).strip() if paper_key_raw else None
     mode = str(payload.get("mode") or ("balanced" if paper_key else "library")).strip()
-    max_tokens = int(payload.get("max_tokens") or 1200)
+    max_tokens = int(payload.get("max_tokens") or (2400 if paper_key else 4000))
     max_fulltext_chars = int(payload.get("max_fulltext_chars") or 24000)
 
     messages = build_chat_messages(

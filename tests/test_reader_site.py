@@ -109,7 +109,7 @@ def test_render_site_adds_per_paper_ask_panel_with_presets(tmp_path: Path):
     assert "data-paper-key=\"p1\"" in detail
     assert "中文讲解" in detail
     assert "和我的 PhD 关系" in detail
-    assert "../assets/app.js?v=ai-reader-2" in detail
+    assert "../assets/app.js?v=ai-reader-3" in detail
 
 
 def test_public_profile_redacts_private_fields_and_token_like_values(tmp_path: Path):
