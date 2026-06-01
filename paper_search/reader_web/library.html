@@ -5,6 +5,15 @@
   <aside class="sidebar" data-nav></aside>
   <main class="main-frame">
     <header class="masthead compact"><div><p class="eyebrow">Paper Library Archive</p><h1>Library</h1><p class="lead">Filter by topic, source, tags, and keywords. Open a paper in the AI reader to load its synced notes and PDF.</p></div><a class="icon-btn" href="ai.html">AI Reader</a></header>
+    <section class="llm-find-panel library-find" data-rank-box>
+      <form class="llm-find-form" data-rank-form>
+        <span class="sparkle">✦</span>
+        <input id="rank-query" data-rank-query placeholder="Ask AI to find papers or update library... / 用 LLM refine & rerank 这个 library" />
+        <button type="submit" class="kbd-btn">⌘ K</button>
+      </form>
+      <div class="rank-status" data-rank-status></div>
+      <div class="rank-results" data-rank-results></div>
+    </section>
     <section class="library-toolbar"><div class="filters"><input id="search" placeholder="Search title, abstract, tags…" /><select id="topic-filter"><option value="">All topics</option></select><select id="source-filter"><option value="">All sources</option></select><select id="tag-filter"><option value="">All tags</option></select></div></section>
     <div id="paper-grid" class="paper-grid"></div>
   </main>

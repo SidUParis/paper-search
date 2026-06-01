@@ -99,7 +99,8 @@ def _safe_public_config(config: ReaderServerConfig) -> dict[str, Any]:
             "chat": True,
             "models": True,
             "jobs": True,
-            "figures": False,
+            "figures": True,
+            "ranking": True,
         },
     }
 
@@ -254,6 +255,22 @@ def create_reader_handler(config: ReaderServerConfig):
                     )
                 except (KeyError, ValueError, RuntimeError) as exc:
                     self._send_json({"error": "chat_failed", "message": str(exc)}, status=HTTPStatus.BAD_REQUEST)
+                    return
+                self._send_json(result)
+                return
+
+            if path == "/api/rank":
+                from paper_search.reader_models import ReaderModelRegistry
+                from paper_search.reader_ranking import rank_papers_with_llm
+
+                try:
+                    result = rank_papers_with_llm(
+                        registry=ReaderModelRegistry(config.state_dir),
+                        site_dir=config.site_dir,
+                        payload=payload,
+                    )
+                except (ValueError, RuntimeError) as exc:
+                    self._send_json({"error": "ranking_failed", "message": str(exc)}, status=HTTPStatus.BAD_REQUEST)
                     return
                 self._send_json(result)
                 return

@@ -80,7 +80,8 @@ def test_public_config_redacts_runtime_paths_and_secrets(tmp_path: Path):
             "chat": True,
             "models": True,
             "jobs": True,
-            "figures": False,
+            "figures": True,
+            "ranking": True,
         },
     }
     assert str(tmp_path) not in text
@@ -152,3 +153,22 @@ def test_chat_api_returns_grounded_answer_without_leaking_key(tmp_path: Path, mo
     text = response.body.decode("utf-8")
     assert "sk-" not in text
     assert json.loads(text)["answer"] == "这是回答"
+
+
+def test_rank_api_returns_llm_reranked_papers(tmp_path: Path, monkeypatch):
+    site = _make_site(tmp_path)
+
+    def fake_rank_papers_with_llm(**kwargs):
+        assert kwargs["site_dir"] == site
+        assert kwargs["payload"]["query"] == "FrenchBBQ bias"
+        return {"query": "FrenchBBQ bias", "results": [{"paper_id": "p1", "score": 0.9, "reason": "相关"}]}
+
+    monkeypatch.setattr("paper_search.reader_ranking.rank_papers_with_llm", fake_rank_papers_with_llm)
+    handler = create_reader_handler(ReaderServerConfig(site_dir=site, profile="private", site_title="Test Reader", state_dir=tmp_path / ".reader"))
+
+    response = handler.handle_test_request("/api/rank", method="POST", json_body={"query": "FrenchBBQ bias"})
+
+    assert response.status == 200
+    payload = json.loads(response.body.decode("utf-8"))
+    assert payload["results"][0]["paper_id"] == "p1"
+    assert "api_key" not in response.body.decode("utf-8").lower()

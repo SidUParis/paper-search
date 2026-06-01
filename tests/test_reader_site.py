@@ -402,3 +402,16 @@ def test_private_render_site_uses_existing_source_url_pdf_cache_for_gallery(tmp_
 
     papers = json.loads((tmp_path / "site" / "data" / "papers.json").read_text(encoding="utf-8"))
     assert papers[0]["figures"]
+
+
+def test_render_site_adds_llm_find_bar_to_home_and_library(tmp_path: Path):
+    render_site([ReaderPaper(paper_id="p1", title="Bias Paper", summary="Summary")], tmp_path, site_title="Test Reader")
+
+    index = (tmp_path / "index.html").read_text(encoding="utf-8")
+    library = (tmp_path / "library.html").read_text(encoding="utf-8")
+    app_js = (tmp_path / "assets" / "app.js").read_text(encoding="utf-8")
+
+    assert "Ask AI to find papers" in index
+    assert "Ask AI to find papers" in library
+    assert "id=\"rank-query\"" in index
+    assert "fetch('/api/rank'" in app_js

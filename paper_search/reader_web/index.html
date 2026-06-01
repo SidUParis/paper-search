@@ -17,6 +17,15 @@
       </div>
       <div class="mast-actions"><a class="icon-btn" href="ai.html">Open AI Reader</a><a class="icon-btn ghost" href="data/papers.json">Metadata</a></div>
     </header>
+    <section class="llm-find-panel" data-rank-box>
+      <form class="llm-find-form" data-rank-form>
+        <span class="sparkle">✦</span>
+        <input id="rank-query" data-rank-query placeholder="Ask AI to find papers or update library... / 例如：找和 FrenchBBQ 多语言偏见评测最相关的论文" />
+        <button type="submit" class="kbd-btn">⌘ K</button>
+      </form>
+      <div class="rank-status" data-rank-status></div>
+      <div class="rank-results" data-rank-results></div>
+    </section>
     <section class="stats-strip" id="metrics"></section>
     <section class="editorial-grid">
       <article id="hero-paper" class="hero-paper"></article>
