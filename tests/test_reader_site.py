@@ -140,6 +140,8 @@ def test_ai_reader_exposes_notebooklm_audio_tab(tmp_path: Path):
     assert "function audioUrl" in app_js
     assert "<audio controls" in app_js
     assert "/paper-assets/audio/" in app_js
+    assert "Generate NotebookLM deep dive" in app_js
+    assert "notebooklm-audio" in app_js
 
 
 def test_ai_reader_opens_figures_in_zoomable_lightbox_not_download_links(tmp_path: Path):

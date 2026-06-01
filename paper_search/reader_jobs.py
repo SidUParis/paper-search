@@ -16,7 +16,7 @@ from dotenv import dotenv_values
 from paper_search.topics import list_topics
 
 ALLOWED_UPDATE_SOURCES = {"all", "acl", "arxiv", "scholar"}
-ALLOWED_ACTIONS = {"update", "update-all", "fulltext", "regenerate", "fulltext-and-regenerate", "extract-figures"}
+ALLOWED_ACTIONS = {"update", "update-all", "fulltext", "regenerate", "fulltext-and-regenerate", "extract-figures", "notebooklm-audio"}
 
 
 @dataclass(slots=True)
@@ -138,6 +138,19 @@ def build_commands(payload: dict[str, Any], *, site_dir: Path, profile: str, sit
     fulltext_limit = _safe_int(payload.get("limit"), 50, 1, 1000)
     export_limit = _optional_limit(payload.get("limit"))
     commands: list[list[str]] = []
+    if action == "notebooklm-audio":
+        paper_key = str(payload.get("paper_key") or payload.get("paper_id") or "").strip()
+        if not paper_key:
+            raise ValueError("paper_key is required")
+        commands.append([
+            sys.executable,
+            "scripts/generate_notebooklm_audio_for_reader.py",
+            "--site-dir",
+            str(site_dir),
+            "--paper-key",
+            paper_key,
+        ])
+        return commands
     if action == "update":
         commands.extend(_topic_commands(payload))
     elif action == "update-all":
