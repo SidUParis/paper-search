@@ -835,6 +835,39 @@ def _catalog_payload() -> dict[str, Any]:
     return {"topics": safe_topics, "sources": sorted(source_set, key=str.lower)}
 
 
+def _cached_notebooklm_audio_path(paper_id: str) -> str:
+    """Return an existing local NotebookLM audio cache path for a paper, if any.
+
+    NotebookLM audio is generated after the static export, so it is not always
+    present in the Notion source row. Keep generated MP3s visible after a later
+    reader-site regeneration by re-attaching the local cache path.
+    """
+
+    repo_root = Path(__file__).resolve().parents[1]
+    roots = [repo_root / "cache" / "notebooklm_audio", Path.cwd() / "cache" / "notebooklm_audio"]
+    candidates: list[Path] = []
+    safe_id = re.sub(r"[^A-Za-z0-9._-]+", "-", paper_id).strip("-.")
+    for root in roots:
+        if root.exists():
+            candidates.extend(path for path in root.glob(f"{safe_id}_notebooklm-*.mp3") if path.is_file() and path.stat().st_size > 0)
+    if not candidates:
+        return ""
+    newest = max(candidates, key=lambda path: path.stat().st_mtime)
+    try:
+        return str(newest.resolve().relative_to(repo_root))
+    except ValueError:
+        return str(newest.resolve())
+
+
+def _with_cached_private_audio(paper: ReaderPaper, *, profile: str) -> ReaderPaper:
+    if profile != "private" or paper.notebooklm_audio:
+        return paper
+    cached_audio = _cached_notebooklm_audio_path(paper.paper_id)
+    if cached_audio:
+        return replace(paper, notebooklm_audio=cached_audio)
+    return paper
+
+
 def render_site(
     papers: list[ReaderPaper],
     output_dir: str | Path,
@@ -870,7 +903,7 @@ def render_site(
             )
             if extracted:
                 figures = extracted
-        enriched_papers.append(replace(paper, figures=figures))
+        enriched_papers.append(_with_cached_private_audio(replace(paper, figures=figures), profile=profile))
     papers_sorted = sorted(
         enriched_papers,
         key=lambda p: (p.updated_at or "", p.year or "", p.title.lower()),

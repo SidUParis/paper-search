@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import paper_search.reader_site as reader_site
 from paper_search.reader_site import ReaderPaper, reader_paper_from_notion_page, render_site, slugify
 
 
@@ -115,6 +116,16 @@ def test_render_site_adds_global_ai_terminal(tmp_path: Path):
     assert "detectNotionIntent" in app_js
     assert "confirm-note-save" in app_js
     assert "fetch('/api/notes/save'" in app_js
+
+
+def test_render_site_preserves_cached_private_notebooklm_audio(tmp_path: Path, monkeypatch):
+    papers = [ReaderPaper(paper_id="p1", title="Audio Paper", summary="Summary")]
+    monkeypatch.setattr(reader_site, "_cached_notebooklm_audio_path", lambda paper_id: "cache/notebooklm_audio/p1_notebooklm-deepdive.mp3")
+
+    render_site(papers, tmp_path, site_title="Test Reader", profile="private")
+
+    data = (tmp_path / "data" / "papers.json").read_text(encoding="utf-8")
+    assert "cache/notebooklm_audio/p1_notebooklm-deepdive.mp3" in data
 
 
 def test_ai_reader_exposes_pdf_notes_and_extracted_figures(tmp_path: Path):
