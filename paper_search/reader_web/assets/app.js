@@ -57,10 +57,11 @@ function setupAdmin(){
       action:btn.dataset.jobAction,
       topic:$('#admin-topic')?.value||'bias-fairness',
       source:$('#admin-source')?.value||'all',
-      limit:$('#admin-limit')?.value||50,
       max_results:$('#admin-max-results')?.value||50,
       summarize:false,
     };
+    const exportLimit=($('#admin-limit')?.value||'').trim();
+    if(exportLimit) payload.limit=exportLimit;
     btn.disabled=true;
     try{
       const res=await fetch('/api/admin/jobs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});

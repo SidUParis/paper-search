@@ -32,6 +32,18 @@ def test_regenerate_job_builds_safe_command(tmp_path: Path):
     ]
 
 
+def test_regenerate_job_without_limit_exports_full_library(tmp_path: Path):
+    commands = build_commands(
+        {"action": "regenerate"},
+        site_dir=tmp_path / "site",
+        profile="private",
+        site_title="Reader",
+    )
+
+    assert commands[0][3] == "export-reader-site"
+    assert "--limit" not in commands[0]
+
+
 def test_update_job_rejects_unknown_action(tmp_path: Path):
     try:
         build_commands({"action": "rm -rf /"}, site_dir=tmp_path, profile="private", site_title="Reader")

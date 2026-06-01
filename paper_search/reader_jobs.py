@@ -84,6 +84,21 @@ def _safe_int(value: Any, default: int, min_value: int, max_value: int) -> int:
     return max(min_value, min(parsed, max_value))
 
 
+def _optional_limit(value: Any, min_value: int = 1, max_value: int = 10000) -> int | None:
+    """Parse an optional export limit; blank/all/none means export the whole library."""
+
+    if value is None:
+        return None
+    text = str(value).strip().lower()
+    if text in {"", "all", "none", "null", "0"}:
+        return None
+    try:
+        parsed = int(text)
+    except ValueError:
+        return None
+    return max(min_value, min(parsed, max_value))
+
+
 def _subprocess_env(cwd: Path) -> dict[str, str]:
     """Build a subprocess env with private project .env values, without logging them."""
     import os
@@ -120,7 +135,8 @@ def build_commands(payload: dict[str, Any], *, site_dir: Path, profile: str, sit
     source = str(payload.get("source") or "all").lower()
     if source not in ALLOWED_UPDATE_SOURCES:
         raise ValueError(f"invalid source: {source}")
-    limit = _safe_int(payload.get("limit"), 50, 1, 1000)
+    fulltext_limit = _safe_int(payload.get("limit"), 50, 1, 1000)
+    export_limit = _optional_limit(payload.get("limit"))
     commands: list[list[str]] = []
     if action == "update":
         commands.extend(_topic_commands(payload))
@@ -131,9 +147,9 @@ def build_commands(payload: dict[str, Any], *, site_dir: Path, profile: str, sit
         for topic_slug in topics:
             commands.extend(_topic_commands({**payload, "topic": topic_slug, "source": source}))
     elif action in {"fulltext", "fulltext-and-regenerate"}:
-        commands.append([sys.executable, "-m", "paper_search.cli", "summarize-fulltext-all", "--source", source, "--limit", str(limit)])
+        commands.append([sys.executable, "-m", "paper_search.cli", "summarize-fulltext-all", "--source", source, "--limit", str(fulltext_limit)])
     if action in {"regenerate", "fulltext-and-regenerate", "extract-figures"}:
-        commands.append([
+        export_cmd = [
             sys.executable,
             "-m",
             "paper_search.cli",
@@ -142,11 +158,14 @@ def build_commands(payload: dict[str, Any], *, site_dir: Path, profile: str, sit
             profile,
             "--output",
             str(site_dir),
-            "--limit",
-            str(limit),
+        ]
+        if export_limit is not None:
+            export_cmd.extend(["--limit", str(export_limit)])
+        export_cmd.extend([
             "--site-title",
             site_title,
         ])
+        commands.append(export_cmd)
     return commands
 
 
