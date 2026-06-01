@@ -475,6 +475,13 @@ def _index_page(papers: list[ReaderPaper], site_title: str, slug_map: dict[str, 
     topic_options = "".join(f'<option value="{escape(t)}">{escape(t)}</option>' for t in topics)
     source_options = "".join(f'<option value="{escape(s)}">{escape(s)}</option>' for s in sources)
     cards = "\n".join(_paper_card(p, f"papers/{slug_map[p.paper_id]}.html") for p in papers)
+    queue_cards = "\n".join(
+        f'<a class="queue-item" href="papers/{escape(slug_map[p.paper_id], quote=True)}.html">'
+        f'<span class="queue-title">{escape(p.title[:88])}{"…" if len(p.title) > 88 else ""}</span>'
+        f'<span class="queue-meta">{escape(p.display_year)} · {escape(p.display_venue)} · {escape(p.status or "paper")}</span>'
+        f'</a>'
+        for p in papers[:6]
+    )
     deep_count = sum(bool(p.tldr or p.motivation or p.method or p.results or p.limitations or p.relevance) for p in papers)
     profile_note = "Public GitHub Pages-safe export: private Notion, Obsidian, local path, and token-like fields are removed." if profile == "public" else "Private local export: includes Notion/Obsidian/local asset paths for your own workflow."
     return f"""<!doctype html>
@@ -487,12 +494,18 @@ def _index_page(papers: list[ReaderPaper], site_title: str, slug_map: dict[str, 
 </head>
 <body class="reader-home">
   <header class="app-header">
-    <div>
-      <div class="eyebrow">Generated {escape(generated)} · {escape(profile.upper())}</div>
-      <h1>{escape(site_title)}</h1>
-      <p>Notion 管元数据，paper-search 做深度处理，Obsidian 保存知识资产；网页端专注 AI 阅读体验。</p>
+    <div class="brand-block">
+      <div class="brand-mark">AI</div>
+      <div>
+        <div class="eyebrow">Generated {escape(generated)} · {escape(profile.upper())} · Cloudflare Access</div>
+        <h1>{escape(site_title)}</h1>
+        <p>一个私有 AI paper reading workbench：搜索、精读、问答、模型切换和后续 sync 都在网页里完成。</p>
+      </div>
     </div>
-    <a class="metadata-link" href="data/papers.json">Metadata JSON</a>
+    <div class="header-actions">
+      <span class="status-pill">Protected</span>
+      <a class="metadata-link" href="data/papers.json">Metadata JSON</a>
+    </div>
   </header>
 
   <main class="app-main">
@@ -501,6 +514,13 @@ def _index_page(papers: list[ReaderPaper], site_title: str, slug_map: dict[str, 
       <button type="button" class="workspace-tab" data-view-target="library-view">Paper Cards / Library</button>
       <button type="button" class="workspace-tab" data-view-target="settings-view">Model Settings</button>
     </nav>
+
+    <section class="overview-grid" aria-label="Reader capabilities">
+      <div class="overview-card accent"><span>01</span><strong>Ask While Reading</strong><p>每篇论文都有中文预设问题。</p></div>
+      <div class="overview-card"><span>02</span><strong>Read in Context</strong><p>metadata + fulltext excerpt + related papers。</p></div>
+      <div class="overview-card"><span>03</span><strong>Model Router</strong><p>DeepSeek / OpenRouter / OpenAI-compatible。</p></div>
+      <div class="overview-card"><span>04</span><strong>Paper Library</strong><p>{len(papers)} papers ready for AI reading。</p></div>
+    </section>
 
     <section id="ai-view" class="workspace-view active">
       <div class="reader-dashboard">
@@ -529,11 +549,15 @@ def _index_page(papers: list[ReaderPaper], site_title: str, slug_map: dict[str, 
         </section>
 
         <aside class="reader-side-panel">
-          <section class="mini-card">
+          <section class="mini-card snapshot-card">
             <h3>Library Snapshot</h3>
             <div class="stats vertical"><span>{len(papers)} Papers</span><span>{len(topics)} Topics</span><span>{len(sources)} Sources</span><span>{deep_count} Deep Sections</span></div>
           </section>
-          <section class="mini-card">
+          <section class="mini-card queue-card">
+            <div class="card-heading-row"><h3>Reading Queue</h3><span>latest</span></div>
+            <div class="queue-list">{queue_cards}</div>
+          </section>
+          <section class="mini-card workflow-card">
             <h3>Workflow</h3>
             <p class="profile-note">{escape(profile_note)}</p>
           </section>
@@ -642,6 +666,46 @@ a:hover { text-decoration:underline; }
 code { color:#bae6fd; word-break:break-all; }
 .hidden { display:none !important; }
 @media (max-width: 980px) { .app-header { position:static; padding:22px; flex-direction:column; } .app-main { padding:16px; } .reader-dashboard { grid-template-columns:1fr; } .library-toolbar { flex-direction:column; align-items:stretch; } .library-controls { grid-template-columns:1fr; } .settings-grid { grid-template-columns:1fr; } .composer-form { grid-template-columns:1fr; } .composer-form textarea { grid-column:auto; } .terminal-header h2 { font-size:28px; } }
+
+body::before { content:""; position:fixed; inset:0; pointer-events:none; background: radial-gradient(circle at 18% 12%, rgba(113,112,255,.25), transparent 28rem), radial-gradient(circle at 82% 8%, rgba(14,165,233,.18), transparent 24rem), linear-gradient(180deg, rgba(255,255,255,.025), transparent 18rem); z-index:-1; }
+.app-header { margin:18px auto 0; width:calc(100% - 48px); max-width:1380px; border:1px solid rgba(255,255,255,.08); border-radius:24px; box-shadow:0 30px 80px rgba(0,0,0,.28); }
+.brand-block { display:flex; gap:16px; align-items:center; }
+.brand-mark { flex:0 0 54px; height:54px; display:grid; place-items:center; border-radius:18px; background:linear-gradient(135deg,#5e6ad2,#0ea5e9); color:white; font-weight:850; letter-spacing:-.05em; box-shadow:0 14px 40px rgba(94,106,210,.35); }
+.header-actions { display:flex; align-items:center; gap:10px; }
+.status-pill { color:#bbf7d0; background:rgba(16,185,129,.12); border:1px solid rgba(16,185,129,.28); border-radius:999px; padding:9px 12px; font-size:13px; font-weight:650; }
+.workspace-tabs { margin-inline:auto; }
+.overview-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin:0 0 20px; }
+.overview-card { min-height:116px; border:1px solid rgba(255,255,255,.08); border-radius:20px; padding:16px; background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.025)); box-shadow:inset 0 1px 0 rgba(255,255,255,.06); }
+.overview-card.accent { background:linear-gradient(135deg,rgba(94,106,210,.48),rgba(14,165,233,.17)); border-color:rgba(130,143,255,.42); }
+.overview-card span { display:inline-flex; font-family:ui-monospace, SFMono-Regular, Menlo, monospace; color:#93c5fd; font-size:12px; margin-bottom:18px; }
+.overview-card strong { display:block; color:#f7f8f8; font-size:16px; margin-bottom:6px; letter-spacing:-.02em; }
+.overview-card p { margin:0; color:#9ca3af; line-height:1.45; font-size:13px; }
+.reader-dashboard { grid-template-columns:minmax(0,1fr) 360px; }
+.ai-terminal { position:relative; overflow:hidden; }
+.ai-terminal::before { content:""; position:absolute; inset:0 0 auto 0; height:1px; background:linear-gradient(90deg,transparent,rgba(130,143,255,.9),transparent); }
+.hero-terminal { min-height:620px; }
+.chat-log { background:radial-gradient(circle at 30% 0%, rgba(94,106,210,.14), transparent 24rem), rgba(3,7,18,.78); }
+.chat-log::after { content:""; flex:1; min-height:70px; }
+.reader-side-panel .mini-card { box-shadow:inset 0 1px 0 rgba(255,255,255,.05), 0 18px 50px rgba(0,0,0,.22); }
+.snapshot-card .stats span { display:flex; justify-content:space-between; }
+.card-heading-row { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:8px; }
+.card-heading-row h3 { margin:0; }
+.card-heading-row span { color:#93c5fd; border:1px solid rgba(147,197,253,.28); background:rgba(147,197,253,.1); border-radius:999px; padding:4px 8px; font-size:11px; }
+.queue-list { display:flex; flex-direction:column; gap:8px; }
+.queue-item { display:block; padding:11px 12px; border:1px solid rgba(255,255,255,.07); border-radius:14px; background:rgba(255,255,255,.025); }
+.queue-item:hover { text-decoration:none; background:rgba(113,112,255,.12); border-color:rgba(113,112,255,.35); }
+.queue-title { display:block; color:#f7f8f8; font-size:13px; line-height:1.35; }
+.queue-meta { display:block; margin-top:5px; color:#8a8f98; font-size:12px; }
+.composer-form { padding:10px; border:1px solid rgba(255,255,255,.08); border-radius:22px; background:rgba(255,255,255,.03); }
+.composer-form textarea { border:0; background:transparent; min-height:80px; }
+.composer-form textarea:focus { box-shadow:none; border:0; }
+.composer-form button { align-self:stretch; min-width:96px; }
+.library-toolbar, .settings-panel { box-shadow:inset 0 1px 0 rgba(255,255,255,.05), 0 18px 50px rgba(0,0,0,.2); }
+.paper-card { transition:transform .16s ease, border-color .16s ease, background .16s ease; }
+.paper-card:hover { transform:translateY(-2px); border-color:rgba(113,112,255,.38); background:rgba(255,255,255,.045); }
+@media (max-width: 1180px) { .overview-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .reader-dashboard { grid-template-columns:1fr; } }
+@media (max-width: 980px) { .app-header { width:calc(100% - 24px); margin-top:12px; } .brand-block { align-items:flex-start; } .header-actions { width:100%; justify-content:space-between; } .overview-grid { grid-template-columns:1fr; } }
+
 """.strip()
 
 APP_JS = """
