@@ -95,3 +95,37 @@ def test_unknown_api_returns_json_404(tmp_path: Path):
     assert response.headers["Content-Type"].startswith("application/json")
     payload = json.loads(response.body.decode("utf-8"))
     assert payload["error"] == "not_found"
+
+
+def test_paper_context_api_returns_grounding_text(tmp_path: Path):
+    site = _make_site(tmp_path)
+    data_path = site / "data" / "papers.json"
+    papers = json.loads(data_path.read_text(encoding="utf-8"))
+    papers[0]["summary"] = "Grounded summary"
+    data_path.write_text(json.dumps(papers), encoding="utf-8")
+    config = ReaderServerConfig(site_dir=site, profile="private", site_title="Test Reader", allowed_context_roots=[tmp_path])
+    handler = create_reader_handler(config)
+
+    response = handler.handle_test_request("/api/papers/p1/context")
+
+    assert response.status == 200
+    payload = json.loads(response.body.decode("utf-8"))
+    assert payload["paper"]["paper_id"] == "p1"
+    assert "[Title] Paper One" in payload["context"]
+    assert "Grounded summary" in payload["context"]
+
+
+def test_related_api_returns_lexical_matches(tmp_path: Path):
+    site = _make_site(tmp_path)
+    data_path = site / "data" / "papers.json"
+    papers = json.loads(data_path.read_text(encoding="utf-8"))
+    papers[0]["summary"] = "BBQ fairness benchmark"
+    data_path.write_text(json.dumps(papers), encoding="utf-8")
+    handler = create_reader_handler(ReaderServerConfig(site_dir=site, profile="private", site_title="Test Reader"))
+
+    response = handler.handle_test_request("/api/related?q=BBQ%20fairness&top_k=1")
+
+    assert response.status == 200
+    payload = json.loads(response.body.decode("utf-8"))
+    assert payload["query"] == "BBQ fairness"
+    assert payload["papers"][0]["paper_id"] == "p1"

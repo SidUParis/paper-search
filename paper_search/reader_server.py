@@ -8,7 +8,7 @@ returned by the public config endpoint.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import argparse
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -29,6 +29,7 @@ class ReaderServerConfig:
     profile: str = "private"
     site_title: str = "Sidney Deep Paper Reader"
     state_dir: Path = Path(".reader")
+    allowed_context_roots: list[Path] = field(default_factory=list)
 
 
 @dataclass(frozen=True, slots=True)
@@ -145,6 +146,33 @@ def create_reader_handler(config: ReaderServerConfig):
                 from paper_search.reader_models import ReaderModelRegistry
 
                 self._send_json(ReaderModelRegistry(config.state_dir).public_config())
+                return
+            if path.startswith("/api/papers/") and path.endswith("/context"):
+                from paper_search.reader_context import build_paper_context
+
+                paper_key = unquote(path.removeprefix("/api/papers/").removesuffix("/context").strip("/"))
+                try:
+                    paper_context = build_paper_context(
+                        config.site_dir,
+                        paper_key,
+                        allowed_roots=config.allowed_context_roots,
+                    )
+                except KeyError as exc:
+                    self._send_json({"error": "paper_not_found", "message": str(exc)}, status=HTTPStatus.NOT_FOUND)
+                    return
+                self._send_json({"paper": paper_context.paper, "context": paper_context.text, "sources": paper_context.sources})
+                return
+            if path == "/api/related":
+                from urllib.parse import parse_qs
+                from paper_search.reader_context import related_papers
+
+                params = parse_qs(parsed.query)
+                query = str(params.get("q", [""])[0])
+                try:
+                    top_k = int(params.get("top_k", ["5"])[0])
+                except ValueError:
+                    top_k = 5
+                self._send_json({"query": query, "papers": related_papers(config.site_dir, query, top_k=max(1, min(top_k, 20)))})
                 return
             if path.startswith("/api/"):
                 self._send_json({"error": "not_found", "path": path}, status=HTTPStatus.NOT_FOUND)
@@ -268,6 +296,12 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--profile", default="private", choices=["private", "public"])
     parser.add_argument("--site-title", default="Sidney Deep Paper Reader")
     parser.add_argument("--state-dir", default=".reader")
+    parser.add_argument(
+        "--context-root",
+        action="append",
+        default=[],
+        help="Allowed root for local fulltext context reads; repeatable",
+    )
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
     args = parser.parse_args(argv)
@@ -277,6 +311,7 @@ def main(argv: list[str] | None = None) -> None:
             profile=args.profile,
             site_title=args.site_title,
             state_dir=Path(args.state_dir),
+            allowed_context_roots=[Path(root) for root in args.context_root],
         ),
         host=args.host,
         port=args.port,
