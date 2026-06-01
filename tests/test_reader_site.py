@@ -174,6 +174,7 @@ def test_private_profile_keeps_local_assets_and_deep_sections(tmp_path: Path):
     index = (tmp_path / "index.html").read_text(encoding="utf-8")
 
     assert (tmp_path / "library.html").exists()
+    assert (tmp_path / "data" / "catalog.json").exists()
     assert "Library" in (tmp_path / "library.html").read_text(encoding="utf-8")
     assert "TL;DR" in detail
     assert "Motivation / 研究动机" in detail

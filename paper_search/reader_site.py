@@ -804,6 +804,32 @@ chatForm?.addEventListener('submit', async (event) => {
 """.strip()
 
 
+def _catalog_payload() -> dict[str, Any]:
+    topics = load_topics()
+    safe_topics: list[dict[str, Any]] = []
+    source_set: set[str] = set()
+    for slug, cfg in topics.items():
+        sources: list[str] = []
+        if cfg.get("acl_data_source_id"):
+            sources.append("ACL")
+        if cfg.get("arxiv_data_source_id"):
+            sources.append("arxiv")
+        if cfg.get("scholar_data_source_id"):
+            sources.append("Scholar")
+        sources.extend(str(venue) for venue in cfg.get("acl_venues", []) if venue)
+        sources.extend(str(venue) for venue in cfg.get("scholar_venues", []) if venue)
+        source_set.update(sources)
+        safe_topics.append(
+            {
+                "slug": slug,
+                "name": str(cfg.get("name") or slug),
+                "keywords": list(cfg.get("keywords") or [])[:20],
+                "sources": sorted(set(sources), key=str.lower),
+            }
+        )
+    return {"topics": safe_topics, "sources": sorted(source_set, key=str.lower)}
+
+
 def render_site(
     papers: list[ReaderPaper],
     output_dir: str | Path,
@@ -859,6 +885,10 @@ def render_site(
     _write(
         output / "data" / "papers.json",
         json.dumps([asdict(p) for p in papers_sorted], ensure_ascii=False, indent=2) + "\n",
+    )
+    _write(
+        output / "data" / "catalog.json",
+        json.dumps(_catalog_payload(), ensure_ascii=False, indent=2) + "\n",
     )
 
     for paper in papers_sorted:
