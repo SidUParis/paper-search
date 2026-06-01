@@ -99,6 +99,19 @@ def test_render_site_adds_global_ai_terminal(tmp_path: Path):
     assert "fetch('/api/chat'" in app_js
 
 
+def test_render_site_adds_per_paper_ask_panel_with_presets(tmp_path: Path):
+    papers = [ReaderPaper(paper_id="p1", title="Bias Paper", summary="Summary")]
+
+    render_site(papers, tmp_path, site_title="Test Reader")
+
+    detail = (tmp_path / "papers" / "p1.html").read_text(encoding="utf-8")
+    assert "Ask While Reading" in detail
+    assert "data-paper-key=\"p1\"" in detail
+    assert "中文讲解" in detail
+    assert "和我的 PhD 关系" in detail
+    assert "../assets/app.js?v=ai-reader-2" in detail
+
+
 def test_public_profile_redacts_private_fields_and_token_like_values(tmp_path: Path):
     papers = [
         ReaderPaper(

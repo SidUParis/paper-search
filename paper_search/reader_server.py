@@ -253,6 +253,7 @@ def create_reader_handler(config: ReaderServerConfig):
         def _send_bytes(self, body: bytes, status: HTTPStatus = HTTPStatus.OK, content_type: str = "application/octet-stream") -> None:
             self.send_response(int(status))
             self.send_header("Content-Type", content_type)
+            self.send_header("Cache-Control", "no-store, max-age=0")
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)

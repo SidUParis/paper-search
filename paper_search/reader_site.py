@@ -382,6 +382,41 @@ def _detail_page(paper: ReaderPaper, site_title: str) -> str:
             _section("Why relevant to Sidney PhD / 与我的博士相关性", paper.relevance),
         ]
     )
+    preset_questions = [
+        ("中文讲解", "请用中文解释这篇论文的核心问题、方法和贡献，适合我快速读懂。"),
+        ("方法拆解", "请拆解这篇论文的方法：输入、模型/算法、实验设置、关键假设分别是什么？"),
+        ("实验结果", "请总结这篇论文的主要实验结果、指标、对比方法，以及最重要的表格/图。"),
+        ("局限性", "请批判性分析这篇论文的局限性、可能的偏差、威胁有效性的因素。"),
+        ("和我的 PhD 关系", "请说明这篇论文和我的 LLM bias / BBQ / MultilingualBBQ / fairness evaluation 博士课题有什么关系，可以怎么引用或扩展？"),
+        ("Related Work 可引用点", "请提炼这篇论文作为 related work 时可引用的 3-5 个点，并给出中文说明。"),
+    ]
+    preset_buttons = "".join(
+        f'<button type="button" class="preset-chip" data-prompt="{escape(prompt, quote=True)}">{escape(label)}</button>'
+        for label, prompt in preset_questions
+    )
+    paper_key = escape(paper.paper_id, quote=True)
+    ask_panel = f"""
+    <section class="ai-terminal paper-ask-panel" aria-label="Ask While Reading" data-paper-key="{paper_key}">
+      <div class="terminal-header">
+        <div>
+          <div class="eyebrow">Read in Context · 当前论文</div>
+          <h2>Ask While Reading</h2>
+          <p class="terminal-subtitle">所有回答都会自动带上这篇论文的摘要、中文速览、fulltext excerpt 和 related context。</p>
+        </div>
+        <span id="chat-status" class="terminal-status">ready</span>
+      </div>
+      <div class="preset-row">{preset_buttons}</div>
+      <div id="chat-log" class="chat-log">
+        <div class="chat-msg assistant">我已经准备好阅读《{escape(paper.title)}》。可以点上面的预设问题，或直接问你自己的问题。</div>
+      </div>
+      <form id="global-chat-form" class="chat-form" data-paper-key="{paper_key}">
+        <div class="field"><label for="chat-provider">Provider</label><select id="chat-provider" aria-label="LLM provider"><option value="deepseek">DeepSeek</option><option value="openrouter">OpenRouter</option><option value="openai">OpenAI</option></select></div>
+        <div class="field model-field"><label for="chat-model">Model</label><input id="chat-model" aria-label="Model name" value="deepseek-v4-flash" /></div>
+        <textarea id="chat-question" placeholder="Ask about this paper… / 问这篇论文" rows="4"></textarea>
+        <button type="submit">Ask this paper</button>
+      </form>
+    </section>
+    """
     return f"""<!doctype html>
 <html lang="zh-CN">
 <head>
@@ -405,6 +440,8 @@ def _detail_page(paper: ReaderPaper, site_title: str) -> str:
       <p>{escape(paper.zh_brief or paper.tldr or paper.summary or '待补充。')}</p>
     </section>
 
+    {ask_panel}
+
     {deep_sections}
 
     <section>
@@ -426,6 +463,7 @@ def _detail_page(paper: ReaderPaper, site_title: str) -> str:
       </ul>
     </section>
   </main>
+  <script src="../assets/app.js?v=ai-reader-2"></script>
 </body>
 </html>
 """
@@ -469,18 +507,24 @@ def _index_page(papers: list[ReaderPaper], site_title: str, slug_map: dict[str, 
     <section class="ai-terminal" aria-label="AI Reading Terminal">
       <div class="terminal-header">
         <div>
-          <div class="eyebrow">Read in Context · Ask While Reading</div>
+          <div class="eyebrow">Read in Context · Whole library</div>
           <h2>AI Reading Terminal</h2>
+          <p class="terminal-subtitle">像 ChatGPT/Claude 一样问你的论文库：先检索相关论文，再用服务端 LLM grounded 回答。</p>
         </div>
         <span id="chat-status" class="terminal-status">ready</span>
       </div>
+      <div class="preset-row">
+        <button type="button" class="preset-chip" data-prompt="哪些论文和 BBQ / FrenchBBQ / MultilingualBBQ 最相关？">BBQ 相关论文</button>
+        <button type="button" class="preset-chip" data-prompt="请按和我的 LLM bias 博士课题相关性排序推荐 5 篇论文，并解释原因。">PhD relevance ranking</button>
+        <button type="button" class="preset-chip" data-prompt="今天最值得精读的论文是哪几篇？请给中文理由。">今日精读建议</button>
+      </div>
       <div id="chat-log" class="chat-log">
-        <div class="chat-msg assistant">你好，我是你的私有论文阅读助手。可以问：哪些论文和 MultilingualBBQ 最相关？或者选择具体 paper 后问贡献、方法、局限。</div>
+        <div class="chat-msg assistant">你好，我是你的私有论文阅读助手。可以问：哪些论文和 MultilingualBBQ 最相关？或者打开具体 paper 后问贡献、方法、局限。</div>
       </div>
       <form id="global-chat-form" class="chat-form">
-        <select id="chat-provider" aria-label="LLM provider"><option value="deepseek">DeepSeek</option><option value="openrouter">OpenRouter</option><option value="openai">OpenAI</option></select>
-        <input id="chat-model" aria-label="Model name" value="deepseek-v4-flash" />
-        <textarea id="chat-question" placeholder="Ask across your paper library… / 用中文问你的论文库" rows="3"></textarea>
+        <div class="field"><label for="chat-provider">Provider</label><select id="chat-provider" aria-label="LLM provider"><option value="deepseek">DeepSeek</option><option value="openrouter">OpenRouter</option><option value="openai">OpenAI</option></select></div>
+        <div class="field model-field"><label for="chat-model">Model</label><input id="chat-model" aria-label="Model name" value="deepseek-v4-flash" /></div>
+        <textarea id="chat-question" placeholder="Ask across your paper library… / 用中文问你的论文库" rows="4"></textarea>
         <button type="submit">Ask AI</button>
       </form>
     </section>
@@ -488,7 +532,7 @@ def _index_page(papers: list[ReaderPaper], site_title: str, slug_map: dict[str, 
       {cards}
     </section>
   </main>
-  <script src="assets/app.js"></script>
+  <script src="assets/app.js?v=ai-reader-2"></script>
 </body>
 </html>
 """
@@ -517,16 +561,24 @@ a:hover { text-decoration:underline; }
 .ai-terminal { background:linear-gradient(180deg, rgba(15,23,42,.92), rgba(17,24,39,.82)); border:1px solid rgba(139,92,246,.35); border-radius:24px; padding:22px; margin-bottom:24px; box-shadow:0 20px 60px rgba(0,0,0,.22); }
 .terminal-header { display:flex; justify-content:space-between; gap:18px; align-items:flex-start; margin-bottom:14px; }
 .terminal-header h2 { margin:4px 0 0; font-size:26px; }
+.terminal-subtitle { margin:8px 0 0; color:#cbd5e1; max-width:760px; line-height:1.6; }
 .terminal-status { border:1px solid rgba(34,211,238,.35); color:#a5f3fc; background:rgba(8,145,178,.14); border-radius:999px; padding:5px 10px; font-size:12px; }
+.preset-row { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0 14px; }
+.preset-chip { border:1px solid rgba(196,181,253,.36); border-radius:999px; color:#ddd6fe; background:rgba(139,92,246,.14); padding:7px 11px; font-size:13px; cursor:pointer; }
+.preset-chip:hover { background:rgba(139,92,246,.25); border-color:rgba(196,181,253,.58); }
 .chat-log { display:flex; flex-direction:column; gap:10px; max-height:420px; overflow:auto; padding:12px; border:1px solid var(--line); border-radius:18px; background:#080b12; }
 .chat-msg { max-width:88%; padding:11px 13px; border-radius:16px; white-space:pre-wrap; line-height:1.6; }
 .chat-msg.user { align-self:flex-end; background:rgba(139,92,246,.26); color:#f5f3ff; }
 .chat-msg.assistant { align-self:flex-start; background:rgba(30,41,59,.85); color:#dbeafe; }
 .chat-msg.error { align-self:flex-start; background:rgba(127,29,29,.6); color:#fecaca; }
-.chat-form { display:grid; grid-template-columns:150px 1fr auto; gap:10px; margin-top:14px; }
-.chat-form textarea { grid-column:1 / -1; min-height:82px; resize:vertical; }
-.chat-form input, .chat-form select, .chat-form textarea { padding:10px 12px; border:1px solid var(--line); border-radius:12px; background:#0b1020; color:var(--text); }
-.chat-form button { border:0; border-radius:12px; padding:10px 16px; background:linear-gradient(135deg,#8b5cf6,#0ea5e9); color:white; font-weight:700; cursor:pointer; }
+.chat-form { display:grid; grid-template-columns:minmax(140px,180px) minmax(220px,1fr) auto; gap:10px; margin-top:14px; align-items:end; }
+.chat-form .field { display:flex; flex-direction:column; gap:5px; }
+.chat-form label { color:#94a3b8; font-size:12px; letter-spacing:.02em; }
+.chat-form textarea { grid-column:1 / -1; min-height:118px; resize:vertical; }
+.chat-form input, .chat-form select, .chat-form textarea { width:100%; padding:11px 12px; border:1px solid var(--line); border-radius:12px; background:#0b1020; color:var(--text); outline:none; font:inherit; }
+.chat-form input:focus, .chat-form select:focus, .chat-form textarea:focus { border-color:rgba(139,92,246,.75); box-shadow:0 0 0 3px rgba(139,92,246,.18); }
+.chat-form button { min-height:43px; border:0; border-radius:12px; padding:10px 18px; background:linear-gradient(135deg,#8b5cf6,#0ea5e9); color:white; font-weight:700; cursor:pointer; }
+.chat-form button:disabled { opacity:.62; cursor:wait; }
 .paper-card { background:rgba(17,24,39,.78); border:1px solid var(--line); border-radius:20px; padding:18px; min-height:220px; box-shadow:0 16px 40px rgba(0,0,0,.18); }
 .paper-title { display:block; font-weight:750; font-size:18px; line-height:1.35; margin-bottom:10px; color:#f5f3ff; }
 .paper-card p { color:#cbd5e1; line-height:1.55; }
@@ -538,7 +590,7 @@ a:hover { text-decoration:underline; }
 .paper-detail p { line-height:1.75; white-space:pre-wrap; }
 code { color:#bae6fd; word-break:break-all; }
 .hidden { display:none !important; }
-@media (max-width: 800px) { .sidebar { position:static; width:auto; border-right:0; border-bottom:1px solid var(--line); } .content { margin-left:0; padding:18px; } .hero h1, .hero h2 { font-size:26px; } }
+@media (max-width: 800px) { .sidebar { position:static; width:auto; border-right:0; border-bottom:1px solid var(--line); } .content { margin-left:0; padding:18px; } .hero h1, .hero h2 { font-size:26px; } .chat-form { grid-template-columns:1fr; } .chat-form textarea { grid-column:auto; } }
 """.strip()
 
 
@@ -564,6 +616,7 @@ function applyFilters() {
 const chatForm = document.getElementById('global-chat-form');
 const chatLog = document.getElementById('chat-log');
 const chatStatus = document.getElementById('chat-status');
+const chatQuestion = document.getElementById('chat-question');
 function addChatMessage(role, text) {
   if (!chatLog) return;
   const msg = document.createElement('div');
@@ -572,26 +625,38 @@ function addChatMessage(role, text) {
   chatLog.appendChild(msg);
   chatLog.scrollTop = chatLog.scrollHeight;
 }
+document.querySelectorAll('.preset-chip').forEach(button => {
+  button.addEventListener('click', () => {
+    if (!chatQuestion) return;
+    chatQuestion.value = button.dataset.prompt || button.textContent || '';
+    chatQuestion.focus();
+  });
+});
 chatForm?.addEventListener('submit', async (event) => {
   event.preventDefault();
   const questionEl = document.getElementById('chat-question');
   const providerEl = document.getElementById('chat-provider');
   const modelEl = document.getElementById('chat-model');
+  const submitButton = chatForm.querySelector('button[type="submit"]');
   const question = (questionEl?.value || '').trim();
+  const paperKey = chatForm.dataset.paperKey || document.querySelector('[data-paper-key]')?.dataset.paperKey || '';
   if (!question) return;
   addChatMessage('user', question);
   if (questionEl) questionEl.value = '';
   if (chatStatus) chatStatus.textContent = 'thinking…';
+  if (submitButton) { submitButton.disabled = true; submitButton.textContent = 'Thinking…'; }
   try {
+    const body = {
+      question,
+      provider_id: providerEl?.value || 'deepseek',
+      model: modelEl?.value || '',
+      mode: paperKey ? 'balanced' : 'library'
+    };
+    if (paperKey) body.paper_key = paperKey;
     const response = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        question,
-        provider_id: providerEl?.value || 'deepseek',
-        model: modelEl?.value || '',
-        mode: 'library'
-      })
+      body: JSON.stringify(body)
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data.message || data.error || 'chat failed');
@@ -600,6 +665,7 @@ chatForm?.addEventListener('submit', async (event) => {
     addChatMessage('error', `Error: ${error.message || error}`);
   } finally {
     if (chatStatus) chatStatus.textContent = 'ready';
+    if (submitButton) { submitButton.disabled = false; submitButton.textContent = paperKey ? 'Ask this paper' : 'Ask AI'; }
   }
 });
 """.strip()
