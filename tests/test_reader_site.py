@@ -126,6 +126,31 @@ def test_ai_reader_exposes_pdf_notes_and_extracted_figures(tmp_path: Path):
     assert "/api/figures/extract" in app_js
 
 
+def test_ai_reader_opens_figures_in_zoomable_lightbox_not_download_links(tmp_path: Path):
+    papers = [
+        ReaderPaper(
+            paper_id="p1",
+            title="Bias Paper",
+            summary="Summary",
+            figures=[{"kind": "image", "title": "Figure 1", "src": "assets/paper-assets/p1/figure.webp"}],
+        )
+    ]
+
+    render_site(papers, tmp_path, site_title="Test Reader")
+
+    app_js = (tmp_path / "assets" / "app.js").read_text(encoding="utf-8")
+    css = (tmp_path / "assets" / "style.css").read_text(encoding="utf-8")
+
+    assert "openFigureViewer" in app_js
+    assert "data-open-visual" in app_js
+    assert "viewer-zoom-in" in app_js
+    assert "viewer-next" in app_js
+    assert "viewer-prev" in app_js
+    assert "figure-viewer" in css
+    assert "bottom" in css
+    assert "target=\"_blank\" rel=\"noreferrer\"><img" not in app_js
+
+
 def test_render_site_adds_per_paper_ask_panel_with_presets(tmp_path: Path):
     papers = [ReaderPaper(paper_id="p1", title="Bias Paper", summary="Summary")]
 
