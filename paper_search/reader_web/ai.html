@@ -3,7 +3,7 @@
 <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>AI Reader · __SITE_TITLE__</title><link rel="stylesheet" href="assets/style.css?v=multi-2" /></head>
 <body class="reader-app ai-reader-app paper-studio" data-page="ai">
   <aside class="reader-left taxonomy-sidebar">
-    <div class="brand-block compact-brand"><div class="brand-mark">AI</div><div><strong>Paper Intelligence</strong><span>PDF · Note · Contextual Chat</span></div></div>
+    <div class="brand-block compact-brand"><div class="brand-mark">AI</div><div><strong>AI Reader</strong><span>PDF · Note · Contextual Chat</span></div></div>
     <a class="back-link" href="library.html">← Library</a>
 
     <section class="taxonomy-block">
@@ -42,6 +42,12 @@
 
   <main class="reader-center">
     <header id="ai-paper-header" class="ai-paper-header"></header>
+    <section class="paper-intel-card center-intel-card">
+      <p class="eyebrow intel-title">Paper Intelligence</p>
+      <div class="intel-box"><strong>TLDR</strong><p id="insight-tldr">Select a paper to load a focused brief.</p></div>
+      <div class="intel-metrics"><div><small>Evidence Score</small><strong id="insight-score">—</strong></div><div><small>Novelty</small><strong id="insight-novelty">—</strong></div></div>
+      <div id="insight-meta" class="intel-meta"></div>
+    </section>
     <section class="pdf-shell">
       <div class="pdf-toolbar"><div><strong>PDF Preview</strong><span id="pdf-status">default view</span></div><div class="pdf-actions"><button id="show-pdf" class="tiny active">PDF</button><button id="show-note" class="tiny">Note</button><a id="open-source" class="tiny ghost" target="_blank" rel="noopener">Source</a></div></div>
       <iframe id="pdf-frame" title="Paper PDF preview"></iframe>
@@ -50,22 +56,14 @@
   </main>
 
   <aside class="reader-chat intelligence-panel">
-    <section class="paper-intel-card">
-      <p class="eyebrow">Paper Intelligence</p>
-      <div class="intel-box"><strong>TLDR</strong><p id="insight-tldr">Select a paper to load a focused brief.</p></div>
-      <div class="intel-metrics"><div><small>Evidence Score</small><strong id="insight-score">—</strong></div><div><small>Novelty</small><strong id="insight-novelty">—</strong></div></div>
-      <div id="insight-meta" class="intel-meta"></div>
-    </section>
-
     <section class="contextual-chat-card">
       <p class="eyebrow">Contextual Chat</p>
-      <div class="prompt-row vertical">
+      <div id="chat-log" class="chat-log"><div class="bubble assistant">选择左侧论文后，我会加载 metadata、fulltext excerpt、Obsidian/Notion 同步字段来回答。</div><div class="prompt-row vertical chat-starters" data-chat-starters>
         <button class="prompt-chip" data-prompt="请用中文解释这篇论文的核心问题、方法和贡献。">中文讲解</button>
         <button class="prompt-chip" data-prompt="请结合 PDF 和同步 note 拆解方法、实验与主要结论。">PDF+Note 方法拆解</button>
         <button class="prompt-chip" data-prompt="这篇论文和我的 LLM bias / MultilingualBBQ 博士课题有什么关系？">和我的 PhD 关系</button>
         <button class="prompt-chip" data-prompt="请提炼 related work 可引用点，并指出局限。">Related Work 可引用点</button>
-      </div>
-      <div id="chat-log" class="chat-log"><div class="bubble assistant">选择左侧论文后，我会加载 metadata、fulltext excerpt、Obsidian/Notion 同步字段来回答。</div></div>
+      </div></div>
     </section>
 
     <form id="chat-form" class="floating-composer paper-composer"><textarea id="chat-question" placeholder="Ask about this paper…" rows="2"></textarea><button type="submit">➤</button></form>
