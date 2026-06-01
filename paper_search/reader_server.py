@@ -98,7 +98,7 @@ def _safe_public_config(config: ReaderServerConfig) -> dict[str, Any]:
         "features": {
             "chat": True,
             "models": True,
-            "jobs": False,
+            "jobs": True,
             "figures": False,
         },
     }
@@ -282,6 +282,38 @@ def create_reader_handler(config: ReaderServerConfig):
                     self._send_json({"error": "invalid_key", "message": str(exc)}, status=HTTPStatus.BAD_REQUEST)
                     return
                 self._send_json({"ok": True, "provider_id": provider_id, "has_key": True})
+                return
+
+            if path == "/api/admin/jobs":
+                from paper_search.reader_jobs import start_job
+
+                try:
+                    result = start_job(
+                        payload,
+                        state_dir=config.state_dir,
+                        site_dir=config.site_dir,
+                        profile=config.profile,
+                        site_title=config.site_title,
+                        cwd=Path.cwd(),
+                    )
+                except ValueError as exc:
+                    self._send_json({"error": "invalid_job", "message": str(exc)}, status=HTTPStatus.BAD_REQUEST)
+                    return
+                self._send_json(result, status=HTTPStatus.ACCEPTED)
+                return
+
+            if path == "/api/admin/jobs/status":
+                from paper_search.reader_jobs import get_job, list_jobs
+
+                job_id = str(payload.get("job_id") or "").strip()
+                if job_id:
+                    job = get_job(config.state_dir, job_id)
+                    if job is None:
+                        self._send_json({"error": "job_not_found", "job_id": job_id}, status=HTTPStatus.NOT_FOUND)
+                        return
+                    self._send_json(job)
+                    return
+                self._send_json({"jobs": list_jobs(config.state_dir)})
                 return
 
             if path.startswith("/api/"):

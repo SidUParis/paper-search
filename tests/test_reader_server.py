@@ -79,7 +79,7 @@ def test_public_config_redacts_runtime_paths_and_secrets(tmp_path: Path):
         "features": {
             "chat": True,
             "models": True,
-            "jobs": False,
+            "jobs": True,
             "figures": False,
         },
     }

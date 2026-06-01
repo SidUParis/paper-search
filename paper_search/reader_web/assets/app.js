@@ -29,5 +29,49 @@ function setupAi(){ fillFilters('ai-'); ['ai-paper-search','ai-topic-filter','ai
 function addBubble(role,text){ const log=$('#chat-log'); if(!log)return; log.insertAdjacentHTML('beforeend',`<div class="bubble ${role}">${esc(text)}</div>`); log.scrollTop=log.scrollHeight; }
 function setupChat(){ const form=$('#chat-form'); if(!form)return; $$('.prompt-chip').forEach(b=>b.addEventListener('click',()=>{ $('#chat-question').value=b.dataset.prompt||b.textContent; $('#chat-question').focus(); })); form.addEventListener('submit',async e=>{ e.preventDefault(); const q=($('#chat-question')?.value||'').trim(); if(!q)return; addBubble('user',q); $('#chat-question').value=''; try{ const body={question:q,provider_id:$('#chat-provider')?.value||'deepseek',model:$('#chat-model')?.value||'deepseek-v4-flash',mode:state.paper?'deep':'library',max_tokens:state.paper?2600:4000}; if(state.paper) body.paper_key=state.paper.paper_id; const res=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); const data=await res.json(); if(!res.ok) throw new Error(data.message||data.error||'chat failed'); addBubble('assistant',data.answer||'No answer returned.'); }catch(err){ addBubble('error',`Error: ${err.message||err}`); } }); }
 function renderPaperPage(){ const id=new URLSearchParams(location.search).get('id'); const p=state.papers.find(x=>x.paper_id===id)||state.papers[0]; state.paper=p; if(!p)return; $('#open-ai-reader').href=aiHref(p); $('#paper-hero').innerHTML=`<p class="eyebrow">${esc(p.topic_slug)} · ${esc(p.source_label||p.venue||'')}</p><h1>${esc(p.title)}</h1><p>${esc((p.authors||[]).join(', '))}</p><div class="hero-footer"><span>${esc(metaLine(p))}</span><a class="primary-link" href="${aiHref(p)}">Open PDF + Chat →</a></div>`; $('#paper-content').innerHTML=noteHtml(p); $('#paper-meta').innerHTML=`<p class="eyebrow">Paper info</p><dl class="meta-list"><dt>Year</dt><dd>${esc(p.display_year||p.year||'—')}</dd><dt>Venue</dt><dd>${esc(p.display_venue||p.venue||p.source_label||'—')}</dd><dt>Tags</dt><dd>${(p.tags||[]).map(t=>`<em>${esc(t)}</em>`).join(' ')||'—'}</dd></dl>`; }
-async function init(){ renderNav(); await loadPapers(); setupChat(); if(page==='discovery'){renderMetrics();renderDiscovery();} if(page==='library'){fillFilters('');renderLibrary();['search','topic-filter','source-filter','tag-filter'].forEach(id=>document.getElementById(id)?.addEventListener('input',renderLibrary));} if(page==='ai') setupAi(); if(page==='paper') renderPaperPage(); }
+
+async function fetchJobs(){
+  const box=$('#job-list'), out=$('#job-output'), title=$('#job-status-title');
+  if(!box) return;
+  try{
+    const res=await fetch('/api/admin/jobs/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({})});
+    const data=await res.json();
+    const jobs=data.jobs||[];
+    title.textContent=jobs[0]?.status||'idle';
+    box.innerHTML=jobs.length?jobs.map(j=>`<button class="job-item" data-job-id="${esc(j.job_id)}"><strong><span>${esc(j.action)}</span><span>${esc(j.status)}</span></strong><small>${esc(j.updated_at||j.created_at)} · ${esc(j.job_id)}</small></button>`).join(''):'<div class="empty-log">No jobs yet.</div>';
+    $$('.job-item').forEach(btn=>btn.addEventListener('click',async()=>{
+      const r=await fetch('/api/admin/jobs/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({job_id:btn.dataset.jobId})});
+      const j=await r.json();
+      out.textContent=(j.output_tail||j.error||'No output yet.');
+      title.textContent=j.status||'idle';
+    }));
+    if(out && jobs[0]) out.textContent=jobs[0].output_tail||jobs[0].error||'Job queued/running…';
+  }catch(err){ if(out) out.textContent=`Failed to load jobs: ${err.message||err}`; }
+}
+function setupAdmin(){
+  if(page!=='admin') return;
+  $('[data-refresh-jobs]')?.addEventListener('click', fetchJobs);
+  $$('[data-job-action]').forEach(btn=>btn.addEventListener('click',async()=>{
+    const payload={
+      action:btn.dataset.jobAction,
+      topic:$('#admin-topic')?.value||'bias-fairness',
+      source:$('#admin-source')?.value||'all',
+      limit:$('#admin-limit')?.value||50,
+      max_results:$('#admin-max-results')?.value||50,
+      summarize:false,
+    };
+    btn.disabled=true;
+    try{
+      const res=await fetch('/api/admin/jobs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      const data=await res.json();
+      if(!res.ok) throw new Error(data.message||data.error||'job failed');
+      $('#job-output').textContent=`Started ${data.action} job ${data.job_id}\n${(data.commands||[]).map(c=>'$ '+c.join(' ')).join('\n')}`;
+      await fetchJobs();
+    }catch(err){ $('#job-output').textContent=`Error: ${err.message||err}`; }
+    finally{ btn.disabled=false; }
+  }));
+  fetchJobs();
+}
+
+async function init(){ renderNav(); await loadPapers(); setupChat(); if(page==='discovery'){renderMetrics();renderDiscovery();} if(page==='library'){fillFilters('');renderLibrary();['search','topic-filter','source-filter','tag-filter'].forEach(id=>document.getElementById(id)?.addEventListener('input',renderLibrary));} if(page==='ai') setupAi(); if(page==='paper') renderPaperPage(); setupAdmin(); }
 init().catch(err=>{ console.error(err); document.body.insertAdjacentHTML('afterbegin',`<pre class="fatal">${esc(err.message||err)}</pre>`); });
