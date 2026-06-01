@@ -415,3 +415,18 @@ def test_render_site_adds_llm_find_bar_to_home_and_library(tmp_path: Path):
     assert "Ask AI to find papers" in library
     assert "id=\"rank-query\"" in index
     assert "fetch('/api/rank'" in app_js
+
+
+def test_reader_source_filter_matches_venue_and_normalized_source(tmp_path: Path):
+    render_site(
+        [ReaderPaper(paper_id="p1", title="EMNLP Paper", source_label="ACL", venue="EMNLP", tags=["EMNLP"])],
+        tmp_path,
+        site_title="Test Reader",
+    )
+
+    app_js = (tmp_path / "assets" / "app.js").read_text(encoding="utf-8")
+
+    assert "function sourceKey" in app_js
+    assert "function paperSourceKeys" in app_js
+    assert "paperSourceKeys(p).includes(source)" in app_js
+    assert "sourceLabel(v)" in app_js
