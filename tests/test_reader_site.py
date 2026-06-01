@@ -87,6 +87,18 @@ def test_render_site_writes_index_detail_assets_and_escapes_html(tmp_path: Path)
     assert "/vault/papers/fulltext/p2.md" in detail2
 
 
+def test_render_site_adds_global_ai_terminal(tmp_path: Path):
+    papers = [ReaderPaper(paper_id="p1", title="Bias Paper", summary="Summary")]
+
+    render_site(papers, tmp_path, site_title="Test Reader")
+
+    index = (tmp_path / "index.html").read_text(encoding="utf-8")
+    app_js = (tmp_path / "assets" / "app.js").read_text(encoding="utf-8")
+    assert "AI Reading Terminal" in index
+    assert "id=\"global-chat-form\"" in index
+    assert "fetch('/api/chat'" in app_js
+
+
 def test_public_profile_redacts_private_fields_and_token_like_values(tmp_path: Path):
     papers = [
         ReaderPaper(

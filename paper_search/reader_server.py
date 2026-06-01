@@ -65,7 +65,7 @@ def _safe_public_config(config: ReaderServerConfig) -> dict[str, Any]:
         "profile": config.profile,
         "site_title": config.site_title,
         "features": {
-            "chat": False,
+            "chat": True,
             "models": True,
             "jobs": False,
             "figures": False,
@@ -197,6 +197,23 @@ def create_reader_handler(config: ReaderServerConfig):
                 return
             if not isinstance(payload, dict):
                 self._send_json({"error": "invalid_json"}, status=HTTPStatus.BAD_REQUEST)
+                return
+
+            if path == "/api/chat":
+                from paper_search.reader_chat import generate_chat_response
+                from paper_search.reader_models import ReaderModelRegistry
+
+                try:
+                    result = generate_chat_response(
+                        registry=ReaderModelRegistry(config.state_dir),
+                        site_dir=config.site_dir,
+                        payload=payload,
+                        allowed_roots=config.allowed_context_roots,
+                    )
+                except (KeyError, ValueError, RuntimeError) as exc:
+                    self._send_json({"error": "chat_failed", "message": str(exc)}, status=HTTPStatus.BAD_REQUEST)
+                    return
+                self._send_json(result)
                 return
 
             if path == "/api/models":

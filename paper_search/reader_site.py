@@ -466,6 +466,24 @@ def _index_page(papers: list[ReaderPaper], site_title: str, slug_map: dict[str, 
       <p class="profile-note">{escape(profile_note)}</p>
       <div class="stats"><span>{len(papers)} Papers</span><span>{len(topics)} Topics</span><span>{len(sources)} Sources</span><span>{deep_count} Deep Sections</span></div>
     </section>
+    <section class="ai-terminal" aria-label="AI Reading Terminal">
+      <div class="terminal-header">
+        <div>
+          <div class="eyebrow">Read in Context · Ask While Reading</div>
+          <h2>AI Reading Terminal</h2>
+        </div>
+        <span id="chat-status" class="terminal-status">ready</span>
+      </div>
+      <div id="chat-log" class="chat-log">
+        <div class="chat-msg assistant">你好，我是你的私有论文阅读助手。可以问：哪些论文和 MultilingualBBQ 最相关？或者选择具体 paper 后问贡献、方法、局限。</div>
+      </div>
+      <form id="global-chat-form" class="chat-form">
+        <select id="chat-provider" aria-label="LLM provider"><option value="deepseek">DeepSeek</option><option value="openrouter">OpenRouter</option><option value="openai">OpenAI</option></select>
+        <input id="chat-model" aria-label="Model name" value="deepseek-v4-flash" />
+        <textarea id="chat-question" placeholder="Ask across your paper library… / 用中文问你的论文库" rows="3"></textarea>
+        <button type="submit">Ask AI</button>
+      </form>
+    </section>
     <section id="papers" class="paper-grid">
       {cards}
     </section>
@@ -496,6 +514,19 @@ a:hover { text-decoration:underline; }
 .hero { background:linear-gradient(135deg, rgba(139,92,246,.22), rgba(14,165,233,.12)); border:1px solid var(--line); border-radius:24px; padding:28px; margin-bottom:24px; }
 .hero h2, .hero h1 { margin:6px 0 10px; font-size:34px; }
 .paper-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(310px,1fr)); gap:18px; }
+.ai-terminal { background:linear-gradient(180deg, rgba(15,23,42,.92), rgba(17,24,39,.82)); border:1px solid rgba(139,92,246,.35); border-radius:24px; padding:22px; margin-bottom:24px; box-shadow:0 20px 60px rgba(0,0,0,.22); }
+.terminal-header { display:flex; justify-content:space-between; gap:18px; align-items:flex-start; margin-bottom:14px; }
+.terminal-header h2 { margin:4px 0 0; font-size:26px; }
+.terminal-status { border:1px solid rgba(34,211,238,.35); color:#a5f3fc; background:rgba(8,145,178,.14); border-radius:999px; padding:5px 10px; font-size:12px; }
+.chat-log { display:flex; flex-direction:column; gap:10px; max-height:420px; overflow:auto; padding:12px; border:1px solid var(--line); border-radius:18px; background:#080b12; }
+.chat-msg { max-width:88%; padding:11px 13px; border-radius:16px; white-space:pre-wrap; line-height:1.6; }
+.chat-msg.user { align-self:flex-end; background:rgba(139,92,246,.26); color:#f5f3ff; }
+.chat-msg.assistant { align-self:flex-start; background:rgba(30,41,59,.85); color:#dbeafe; }
+.chat-msg.error { align-self:flex-start; background:rgba(127,29,29,.6); color:#fecaca; }
+.chat-form { display:grid; grid-template-columns:150px 1fr auto; gap:10px; margin-top:14px; }
+.chat-form textarea { grid-column:1 / -1; min-height:82px; resize:vertical; }
+.chat-form input, .chat-form select, .chat-form textarea { padding:10px 12px; border:1px solid var(--line); border-radius:12px; background:#0b1020; color:var(--text); }
+.chat-form button { border:0; border-radius:12px; padding:10px 16px; background:linear-gradient(135deg,#8b5cf6,#0ea5e9); color:white; font-weight:700; cursor:pointer; }
 .paper-card { background:rgba(17,24,39,.78); border:1px solid var(--line); border-radius:20px; padding:18px; min-height:220px; box-shadow:0 16px 40px rgba(0,0,0,.18); }
 .paper-title { display:block; font-weight:750; font-size:18px; line-height:1.35; margin-bottom:10px; color:#f5f3ff; }
 .paper-card p { color:#cbd5e1; line-height:1.55; }
@@ -529,6 +560,48 @@ function applyFilters() {
   });
 }
 [search, topic, source].forEach(el => el && el.addEventListener('input', applyFilters));
+
+const chatForm = document.getElementById('global-chat-form');
+const chatLog = document.getElementById('chat-log');
+const chatStatus = document.getElementById('chat-status');
+function addChatMessage(role, text) {
+  if (!chatLog) return;
+  const msg = document.createElement('div');
+  msg.className = `chat-msg ${role}`;
+  msg.textContent = text;
+  chatLog.appendChild(msg);
+  chatLog.scrollTop = chatLog.scrollHeight;
+}
+chatForm?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const questionEl = document.getElementById('chat-question');
+  const providerEl = document.getElementById('chat-provider');
+  const modelEl = document.getElementById('chat-model');
+  const question = (questionEl?.value || '').trim();
+  if (!question) return;
+  addChatMessage('user', question);
+  if (questionEl) questionEl.value = '';
+  if (chatStatus) chatStatus.textContent = 'thinking…';
+  try {
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        question,
+        provider_id: providerEl?.value || 'deepseek',
+        model: modelEl?.value || '',
+        mode: 'library'
+      })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || data.error || 'chat failed');
+    addChatMessage('assistant', data.answer || 'No answer returned.');
+  } catch (error) {
+    addChatMessage('error', `Error: ${error.message || error}`);
+  } finally {
+    if (chatStatus) chatStatus.textContent = 'ready';
+  }
+});
 """.strip()
 
 

@@ -77,7 +77,7 @@ def test_public_config_redacts_runtime_paths_and_secrets(tmp_path: Path):
         "profile": "private",
         "site_title": "Test Reader",
         "features": {
-            "chat": False,
+            "chat": True,
             "models": True,
             "jobs": False,
             "figures": False,
@@ -129,3 +129,26 @@ def test_related_api_returns_lexical_matches(tmp_path: Path):
     payload = json.loads(response.body.decode("utf-8"))
     assert payload["query"] == "BBQ fairness"
     assert payload["papers"][0]["paper_id"] == "p1"
+
+
+def test_chat_api_returns_grounded_answer_without_leaking_key(tmp_path: Path, monkeypatch):
+    site = _make_site(tmp_path)
+    state = tmp_path / ".reader"
+
+    def fake_generate_chat_response(**kwargs):
+        assert kwargs["site_dir"] == site
+        assert kwargs["allowed_roots"] == [tmp_path]
+        assert kwargs["payload"]["question"] == "贡献？"
+        return {"answer": "这是回答", "provider_id": "deepseek", "model": "deepseek-v4-flash"}
+
+    monkeypatch.setattr("paper_search.reader_chat.generate_chat_response", fake_generate_chat_response)
+    handler = create_reader_handler(
+        ReaderServerConfig(site_dir=site, profile="private", site_title="Test Reader", state_dir=state, allowed_context_roots=[tmp_path])
+    )
+
+    response = handler.handle_test_request("/api/chat", method="POST", json_body={"question": "贡献？", "paper_key": "p1"})
+
+    assert response.status == 200
+    text = response.body.decode("utf-8")
+    assert "sk-" not in text
+    assert json.loads(text)["answer"] == "这是回答"
