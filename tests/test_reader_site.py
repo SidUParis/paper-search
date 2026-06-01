@@ -79,9 +79,11 @@ def test_render_site_writes_index_detail_assets_and_escapes_html(tmp_path: Path)
     index = (tmp_path / "index.html").read_text(encoding="utf-8")
     detail = (tmp_path / "papers" / "p1.html").read_text(encoding="utf-8")
     detail2 = (tmp_path / "papers" / "p2.html").read_text(encoding="utf-8")
+    app_js = (tmp_path / "assets" / "app.js").read_text(encoding="utf-8")
 
-    assert "papers/p1.html" in index
-    assert "papers/p2.html" in index
+    assert "paper.html?id=" in app_js
+    assert "papers/p1.html" not in index
+    assert "papers/p2.html" not in index
     assert "<script>alert(1)</script>" not in index
     assert "&lt;script&gt;alert(1)&lt;/script&gt;" in detail
     assert "/vault/papers/fulltext/p2.md" in detail2
@@ -95,7 +97,7 @@ def test_render_site_adds_global_ai_terminal(tmp_path: Path):
     index = (tmp_path / "index.html").read_text(encoding="utf-8")
     app_js = (tmp_path / "assets" / "app.js").read_text(encoding="utf-8")
     assert "AI Reading Terminal" in index
-    assert "id=\"global-chat-form\"" in index
+    assert "id=\"chat-form\"" in index
     assert "fetch('/api/chat'" in app_js
 
 
@@ -169,7 +171,7 @@ def test_private_profile_keeps_local_assets_and_deep_sections(tmp_path: Path):
     detail = (tmp_path / "papers" / "deep-paper.html").read_text(encoding="utf-8")
     index = (tmp_path / "index.html").read_text(encoding="utf-8")
 
-    assert "Deep Sections" in index
+    assert "Paper Library" in index
     assert "TL;DR" in detail
     assert "Motivation / 研究动机" in detail
     assert "Method / 方法" in detail

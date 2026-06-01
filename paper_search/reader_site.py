@@ -840,9 +840,23 @@ def render_site(
         used_slugs.add(slug)
         slug_map[paper.paper_id] = slug
 
-    _write(output / "assets" / "style.css", STYLE_CSS + "\n")
-    _write(output / "assets" / "app.js", APP_JS + "\n")
-    _write(output / "index.html", _index_page(papers_sorted, site_title, slug_map, profile))
+    web_dir = Path(__file__).resolve().parent / "reader_web"
+    if web_dir.exists():
+        generated = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+        index_template = (web_dir / "index.html").read_text(encoding="utf-8")
+        paper_template = (web_dir / "paper.html").read_text(encoding="utf-8")
+        _write(
+            output / "index.html",
+            index_template.replace("__SITE_TITLE__", site_title)
+            .replace("__GENERATED__", generated)
+            .replace("__PROFILE__", profile.upper()),
+        )
+        _write(output / "paper.html", paper_template)
+        shutil.copytree(web_dir / "assets", output / "assets", dirs_exist_ok=True)
+    else:  # fallback for source distributions missing reader_web assets
+        _write(output / "assets" / "style.css", STYLE_CSS + "\n")
+        _write(output / "assets" / "app.js", APP_JS + "\n")
+        _write(output / "index.html", _index_page(papers_sorted, site_title, slug_map, profile))
     _write(
         output / "data" / "papers.json",
         json.dumps([asdict(p) for p in papers_sorted], ensure_ascii=False, indent=2) + "\n",
