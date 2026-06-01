@@ -1,48 +1,12 @@
 <!doctype html>
 <html lang="zh-CN">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Paper · Sidney Deep Paper Reader</title>
-  <link rel="stylesheet" href="assets/style.css?v=stitch-2" />
-</head>
+<head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Paper · __SITE_TITLE__</title><link rel="stylesheet" href="assets/style.css?v=multi-1" /></head>
 <body class="reader-app paper-page" data-page="paper">
-  <aside class="sidebar reading-sidebar">
-    <a class="back-link" href="index.html">← Back to Library</a>
-    <div class="brand-block"><div class="brand-mark">AR</div><div><strong>Ask While Reading</strong><span>focused paper mode</span></div></div>
-    <nav class="toc-card" id="paper-toc">
-      <span>Sections</span>
-      <a href="#summary">中文速览</a>
-      <a href="#method">Method</a>
-      <a href="#results">Results</a>
-      <a href="#limitations">Limitations</a>
-      <a href="#abstract">Abstract</a>
-    </nav>
-  </aside>
+  <aside class="sidebar reading-sidebar" data-nav></aside>
   <main class="main-frame reading-frame">
     <header id="paper-hero" class="reading-hero"></header>
-    <section class="reading-layout">
-      <article id="paper-content" class="reading-column"></article>
-      <aside class="insight-column">
-        <section class="mini-panel">
-          <div class="section-head"><span>Ask While Reading</span><span id="chat-status" class="status-pill">ready</span></div>
-          <div class="prompt-row vertical">
-            <button class="prompt-chip" data-prompt="请用中文解释这篇论文的核心问题、方法和贡献，适合我快速读懂。">中文讲解</button>
-            <button class="prompt-chip" data-prompt="请拆解这篇论文的方法：输入、模型/算法、实验设置、关键假设分别是什么？">方法拆解</button>
-            <button class="prompt-chip" data-prompt="请总结这篇论文的主要实验结果、指标、对比方法，以及最重要的表格/图。">实验结果</button>
-            <button class="prompt-chip" data-prompt="请批判性分析这篇论文的局限性、可能的偏差、威胁有效性的因素。">局限性</button>
-            <button class="prompt-chip" data-prompt="请说明这篇论文和我的 LLM bias / BBQ / MultilingualBBQ / fairness evaluation 博士课题有什么关系，可以怎么引用或扩展？">和我的 PhD 关系</button>
-            <button class="prompt-chip" data-prompt="请提炼这篇论文作为 related work 时可引用的 3-5 个点，并给出中文说明。">Related Work 可引用点</button>
-          </div>
-        </section>
-        <section class="mini-panel"><div id="paper-meta"></div></section>
-      </aside>
-    </section>
+    <section class="reading-layout"><article id="paper-content" class="reading-column"></article><aside class="insight-column"><section class="mini-panel"><div class="section-head"><span>Ask While Reading</span><a id="open-ai-reader" class="status-pill" href="ai.html">Open AI Reader</a></div><div class="prompt-row vertical"><button class="prompt-chip" data-prompt="请用中文解释这篇论文的核心问题、方法和贡献，适合我快速读懂。">中文讲解</button><button class="prompt-chip" data-prompt="请拆解这篇论文的方法：输入、模型/算法、实验设置、关键假设分别是什么？">方法拆解</button><button class="prompt-chip" data-prompt="请说明这篇论文和我的 LLM bias / BBQ / MultilingualBBQ / fairness evaluation 博士课题有什么关系，可以怎么引用或扩展？">和我的 PhD 关系</button></div></section><section class="mini-panel"><div id="paper-meta"></div></section></aside></section>
   </main>
-  <section class="bottom-chat">
-    <div id="chat-log" class="chat-log paper-chat-log"><div class="bubble assistant">我会带上这篇论文的 metadata / fulltext excerpt / related papers 来回答。</div></div>
-    <form id="chat-form" class="floating-composer paper-composer"><textarea id="chat-question" placeholder="Ask about this paper… Shift + Enter 换行" rows="1"></textarea><button type="submit">Ask</button></form>
-  </section>
-  <script src="assets/app.js?v=stitch-2"></script>
+  <script src="assets/app.js?v=multi-1"></script>
 </body>
 </html>

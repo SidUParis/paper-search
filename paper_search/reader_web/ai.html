@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>AI Reader · __SITE_TITLE__</title><link rel="stylesheet" href="assets/style.css?v=multi-1" /></head>
+<body class="reader-app ai-reader-app" data-page="ai">
+  <aside class="reader-left">
+    <div class="brand-block"><div class="brand-mark">AI</div><div><strong>AI Reader</strong><span>PDF + Note + Chat</span></div></div>
+    <a class="back-link" href="library.html">← Library</a>
+    <section class="left-panel">
+      <p class="eyebrow">Classification</p>
+      <input id="ai-paper-search" class="full-input" placeholder="Search papers…" />
+      <select id="ai-topic-filter" class="full-input"><option value="">All topics</option></select>
+      <select id="ai-tag-filter" class="full-input"><option value="">All tags</option></select>
+    </section>
+    <section class="left-panel paper-list-panel"><div class="section-head"><span>Papers</span><strong id="ai-paper-count">0</strong></div><div id="ai-paper-list" class="ai-paper-list"></div></section>
+  </aside>
+
+  <main class="reader-center">
+    <header id="ai-paper-header" class="ai-paper-header"></header>
+    <section class="pdf-shell">
+      <div class="pdf-toolbar"><div><strong>PDF Preview</strong><span id="pdf-status">default view</span></div><div class="pdf-actions"><button id="show-pdf" class="tiny active">PDF</button><button id="show-note" class="tiny">Note</button><a id="open-source" class="tiny ghost" target="_blank" rel="noopener">Source</a></div></div>
+      <iframe id="pdf-frame" title="Paper PDF preview"></iframe>
+      <article id="synced-note" class="synced-note hidden"></article>
+    </section>
+  </main>
+
+  <aside class="reader-chat">
+    <div class="chat-config">
+      <div><p class="eyebrow">Model</p><strong>Contextual Chat</strong></div>
+      <select id="chat-provider"><option value="deepseek">DeepSeek</option><option value="openrouter">OpenRouter</option><option value="openai">OpenAI</option></select>
+      <input id="chat-model" value="deepseek-v4-flash" />
+    </div>
+    <div class="prompt-row vertical">
+      <button class="prompt-chip" data-prompt="请用中文解释这篇论文的核心问题、方法和贡献。">中文讲解</button>
+      <button class="prompt-chip" data-prompt="请结合 PDF 和同步 note 拆解方法、实验与主要结论。">PDF+Note 方法拆解</button>
+      <button class="prompt-chip" data-prompt="这篇论文和我的 LLM bias / MultilingualBBQ 博士课题有什么关系？">和我的 PhD 关系</button>
+      <button class="prompt-chip" data-prompt="请提炼 related work 可引用点，并指出局限。">Related Work 可引用点</button>
+    </div>
+    <div id="chat-log" class="chat-log"><div class="bubble assistant">选择左侧论文后，我会默认使用当前 paper_key，后端会加载 metadata、fulltext excerpt、Obsidian/Notion 同步字段来回答。</div></div>
+    <form id="chat-form" class="floating-composer"><textarea id="chat-question" placeholder="Ask about this paper…" rows="2"></textarea><button type="submit">Ask</button></form>
+  </aside>
+  <script src="assets/app.js?v=multi-1"></script>
+</body>
+</html>

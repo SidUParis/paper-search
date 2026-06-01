@@ -21,6 +21,37 @@ from typing import Any
 from urllib.parse import unquote, urlparse
 
 
+def _path_is_allowed(path: Path, roots: list[Path]) -> bool:
+    resolved = path.expanduser().resolve()
+    allowed = [root.expanduser().resolve() for root in roots]
+    if not allowed:
+        return False
+    return any(resolved.is_relative_to(root) for root in allowed)
+
+
+def _paper_asset_path(site_dir: Path, paper_key: str, kind: str, allowed_roots: list[Path]) -> Path | None:
+    if kind not in {"document", "fulltext", "note"}:
+        return None
+    papers = _load_papers(site_dir)
+    paper = next((p for p in papers if str(p.get("paper_id") or "") == paper_key), None)
+    if paper is None:
+        return None
+    field = {"document": "local_document", "fulltext": "local_fulltext", "note": "obsidian_note"}[kind]
+    raw = str(paper.get(field) or "")
+    if not raw:
+        return None
+    path = Path(raw).expanduser()
+    try:
+        resolved = path.resolve()
+    except OSError:
+        return None
+    if not resolved.exists() or not resolved.is_file():
+        return None
+    if not _path_is_allowed(resolved, allowed_roots):
+        return None
+    return resolved
+
+
 @dataclass(frozen=True, slots=True)
 class ReaderServerConfig:
     """Runtime settings for the local reader server."""
@@ -173,6 +204,17 @@ def create_reader_handler(config: ReaderServerConfig):
                 except ValueError:
                     top_k = 5
                 self._send_json({"query": query, "papers": related_papers(config.site_dir, query, top_k=max(1, min(top_k, 20)))})
+                return
+            if path.startswith("/paper-assets/"):
+                parts = [part for part in path.split("/") if part]
+                if len(parts) == 3:
+                    _, kind, paper_key = parts
+                    asset = _paper_asset_path(config.site_dir, unquote(paper_key), kind, config.allowed_context_roots)
+                    if asset is not None:
+                        content_type = mimetypes.guess_type(str(asset))[0] or "application/octet-stream"
+                        self._send_bytes(asset.read_bytes(), content_type=content_type)
+                        return
+                self._send_bytes(b"Asset not found", status=HTTPStatus.NOT_FOUND, content_type="text/plain; charset=utf-8")
                 return
             if path.startswith("/api/"):
                 self._send_json({"error": "not_found", "path": path}, status=HTTPStatus.NOT_FOUND)

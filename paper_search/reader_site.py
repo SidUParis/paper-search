@@ -843,15 +843,14 @@ def render_site(
     web_dir = Path(__file__).resolve().parent / "reader_web"
     if web_dir.exists():
         generated = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-        index_template = (web_dir / "index.html").read_text(encoding="utf-8")
-        paper_template = (web_dir / "paper.html").read_text(encoding="utf-8")
-        _write(
-            output / "index.html",
-            index_template.replace("__SITE_TITLE__", site_title)
-            .replace("__GENERATED__", generated)
-            .replace("__PROFILE__", profile.upper()),
-        )
-        _write(output / "paper.html", paper_template)
+        for template_path in web_dir.glob("*.html"):
+            rendered = (
+                template_path.read_text(encoding="utf-8")
+                .replace("__SITE_TITLE__", site_title)
+                .replace("__GENERATED__", generated)
+                .replace("__PROFILE__", profile.upper())
+            )
+            _write(output / template_path.name, rendered)
         shutil.copytree(web_dir / "assets", output / "assets", dirs_exist_ok=True)
     else:  # fallback for source distributions missing reader_web assets
         _write(output / "assets" / "style.css", STYLE_CSS + "\n")

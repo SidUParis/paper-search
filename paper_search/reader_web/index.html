@@ -4,114 +4,26 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>__SITE_TITLE__</title>
-  <link rel="stylesheet" href="assets/style.css?v=stitch-2" />
+  <link rel="stylesheet" href="assets/style.css?v=multi-1" />
 </head>
-<body class="reader-app" data-page="home">
-  <aside class="sidebar">
-    <div class="brand-block">
-      <div class="brand-mark">PR</div>
-      <div><strong>Paper Reader</strong><span>Sidney private lab</span></div>
-    </div>
-    <nav class="side-nav" aria-label="Reader navigation">
-      <button class="side-link active" data-view="discovery-view"><span>01</span>Discovery</button>
-      <button class="side-link" data-view="library-view"><span>02</span>Library</button>
-      <button class="side-link" data-view="ai-view"><span>03</span>AI Studio</button>
-      <button class="side-link" data-view="admin-view"><span>04</span>Admin</button>
-      <button class="side-link" data-view="settings-view"><span>05</span>Models</button>
-    </nav>
-    <div class="sidebar-foot">
-      <span class="live-dot"></span>
-      <div><strong>Private access</strong><small>Cloudflare Access · __PROFILE__</small></div>
-    </div>
-  </aside>
-
+<body class="reader-app" data-page="discovery">
+  <aside class="sidebar" data-nav></aside>
   <main class="main-frame">
     <header class="masthead">
       <div>
-        <p class="eyebrow">__GENERATED__ · Notion synchronized workspace</p>
+        <p class="eyebrow">__GENERATED__ · Notion / Obsidian synchronized workspace</p>
         <h1>Today’s Curated Reading</h1>
-        <p class="lead">A calm, typography-first reader for papers, full-text context, AI questions, ranking and daily research triage.</p>
+        <p class="lead">A calm private paper reader: discovery, synced notes, PDF-first AI reading, and grounded chat in one workflow.</p>
       </div>
-      <div class="mast-actions">
-        <button class="icon-btn" data-view-target="ai-view">Ask AI</button>
-        <a class="icon-btn ghost" href="data/papers.json">Metadata</a>
-      </div>
+      <div class="mast-actions"><a class="icon-btn" href="ai.html">Open AI Reader</a><a class="icon-btn ghost" href="data/papers.json">Metadata</a></div>
     </header>
-
     <section class="stats-strip" id="metrics"></section>
-
-    <section id="discovery-view" class="view active">
-      <div class="editorial-grid">
-        <article id="hero-paper" class="hero-paper"></article>
-        <aside class="today-column">
-          <div class="section-head"><span>Daily papers</span><strong id="today-count">0</strong></div>
-          <div id="daily-list" class="daily-list"></div>
-        </aside>
-      </div>
-      <section class="continue-section">
-        <div class="section-head"><span>Continue reading</span><button class="text-action" data-view-target="library-view">View library</button></div>
-        <div id="continue-grid" class="continue-grid"></div>
-      </section>
+    <section class="editorial-grid">
+      <article id="hero-paper" class="hero-paper"></article>
+      <aside class="today-column"><div class="section-head"><span>Daily papers</span><strong id="today-count">0</strong></div><div id="daily-list" class="daily-list"></div></aside>
     </section>
-
-    <section id="library-view" class="view">
-      <div class="library-toolbar">
-        <div><p class="eyebrow">Paper Library Archive</p><h2>Library</h2></div>
-        <div class="filters">
-          <input id="search" placeholder="Search title, abstract, tags…" />
-          <select id="topic-filter"><option value="">All topics</option></select>
-          <select id="source-filter"><option value="">All sources</option></select>
-        </div>
-      </div>
-      <div id="paper-grid" class="paper-grid"></div>
-    </section>
-
-    <section id="ai-view" class="view">
-      <div class="ai-shell">
-        <section class="ai-paper-context">
-          <p class="eyebrow">Read in Context</p>
-          <h2>AI Reading Terminal</h2>
-          <p>Ask across the whole library. The backend keeps model keys server-side and assembles grounded paper context.</p>
-          <div class="prompt-row">
-            <button class="prompt-chip" data-prompt="哪些论文和 BBQ / FrenchBBQ / MultilingualBBQ 最相关？请按相关性排序。">BBQ 相关论文</button>
-            <button class="prompt-chip" data-prompt="请按和我的 LLM bias 博士课题相关性排序推荐 5 篇论文，并解释原因。">PhD relevance ranking</button>
-            <button class="prompt-chip" data-prompt="今天最值得精读的论文是哪几篇？请给中文理由。">今日精读建议</button>
-            <button class="prompt-chip" data-prompt="从当前 library 中提炼一个 related work 结构，中文说明每组论文的作用。">Related work map</button>
-          </div>
-        </section>
-        <section class="chat-card">
-          <div class="chat-top"><span id="chat-status" class="status-pill">ready</span><span>Global library mode</span></div>
-          <div id="chat-log" class="chat-log"><div class="bubble assistant">你好，我会像 Claude/ChatGPT 一样读取你的论文库。可以问中文，我会基于 paper metadata/fulltext context 回答。</div></div>
-          <form id="chat-form" class="floating-composer">
-            <textarea id="chat-question" placeholder="Tapez un message… / 用中文问你的论文库" rows="2"></textarea>
-            <button type="submit">Ask</button>
-          </form>
-        </section>
-      </div>
-    </section>
-
-    <section id="admin-view" class="view">
-      <div class="settings-card admin-card">
-        <p class="eyebrow">Operations</p><h2>Sync dashboard</h2>
-        <p>这些按钮先作为 UI scaffold；下一步会接入后端 job API：update arXiv / ACL / Scholar、extract fulltext/figures、regenerate site。</p>
-        <div class="action-grid">
-          <button disabled>Update arXiv</button><button disabled>Update ACL</button><button disabled>Update Scholar</button><button disabled>Update All</button>
-          <button disabled>Extract fulltext</button><button disabled>Extract figures</button><button disabled>Regenerate site</button><button disabled>Run ranking</button>
-        </div>
-      </div>
-    </section>
-
-    <section id="settings-view" class="view">
-      <div class="settings-card">
-        <p class="eyebrow">Server-side model configuration</p><h2>Models</h2>
-        <p>API key 只存在服务器端；浏览器只选择 provider 和 model name。</p>
-        <div class="settings-grid">
-          <label>Provider<select id="chat-provider"><option value="deepseek">DeepSeek</option><option value="openrouter">OpenRouter</option><option value="openai">OpenAI</option></select></label>
-          <label>Model<input id="chat-model" value="deepseek-v4-flash" /></label>
-        </div>
-      </div>
-    </section>
+    <section class="continue-section"><div class="section-head"><span>Continue reading</span><a class="text-action" href="library.html">View library</a></div><div id="continue-grid" class="continue-grid"></div></section>
   </main>
-  <script src="assets/app.js?v=stitch-2"></script>
+  <script src="assets/app.js?v=multi-1"></script>
 </body>
 </html>

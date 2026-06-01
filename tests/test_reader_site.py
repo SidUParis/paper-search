@@ -95,9 +95,11 @@ def test_render_site_adds_global_ai_terminal(tmp_path: Path):
     render_site(papers, tmp_path, site_title="Test Reader")
 
     index = (tmp_path / "index.html").read_text(encoding="utf-8")
+    ai = (tmp_path / "ai.html").read_text(encoding="utf-8")
     app_js = (tmp_path / "assets" / "app.js").read_text(encoding="utf-8")
-    assert "AI Reading Terminal" in index
-    assert "id=\"chat-form\"" in index
+    assert "AI Reader" in index
+    assert "AI Reader" in ai
+    assert "id=\"chat-form\"" in ai
     assert "fetch('/api/chat'" in app_js
 
 
@@ -171,7 +173,8 @@ def test_private_profile_keeps_local_assets_and_deep_sections(tmp_path: Path):
     detail = (tmp_path / "papers" / "deep-paper.html").read_text(encoding="utf-8")
     index = (tmp_path / "index.html").read_text(encoding="utf-8")
 
-    assert "Paper Library" in index
+    assert (tmp_path / "library.html").exists()
+    assert "Library" in (tmp_path / "library.html").read_text(encoding="utf-8")
     assert "TL;DR" in detail
     assert "Motivation / 研究动机" in detail
     assert "Method / 方法" in detail

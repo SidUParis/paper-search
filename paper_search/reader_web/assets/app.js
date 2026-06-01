@@ -1,106 +1,33 @@
 const state = { papers: [], paper: null };
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+const page = document.body.dataset.page || 'discovery';
 const esc = (s='') => String(s ?? '').replace(/[&<>"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
-
-async function loadPapers() {
-  const res = await fetch('data/papers.json', { cache: 'no-store' });
-  state.papers = await res.json();
-  return state.papers;
-}
-function uniq(values) { return [...new Set(values.filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b))); }
-function paperHref(p) { return `paper.html?id=${encodeURIComponent(p.paper_id)}`; }
-function summaryOf(p) { return p.zh_brief || p.tldr || p.summary || p.abstract || '待补充。'; }
-function short(text, n=180) { text = String(text || ''); return text.length > n ? text.slice(0,n) + '…' : text; }
-function metaLine(p) { return [p.display_year || p.year, p.display_venue || p.venue || p.source_label].filter(Boolean).join(' · '); }
-
-function renderMetrics() {
-  const box = $('#metrics'); if (!box) return;
-  const topics = uniq(state.papers.map(p => p.topic_slug));
-  const sources = uniq(state.papers.map(p => p.source_label || p.venue));
-  const deep = state.papers.filter(p => p.tldr || p.method || p.results || p.limitations || p.relevance).length;
-  box.innerHTML = [
-    ['Daily papers', state.papers.length, 'active corpus'], ['Topics', topics.length, 'research streams'], ['Sources', sources.length, 'venues / feeds'], ['Context-ready', deep, 'deep fields']
-  ].map(([k,v,d])=>`<article class="stat"><strong>${esc(v)}</strong><span>${esc(k)}</span><small>${esc(d)}</small></article>`).join('');
-}
-function paperCard(p, cls='paper-card') {
-  return `<a class="${cls}" href="${paperHref(p)}"><div class="card-meta"><span>${esc(p.topic_slug || 'paper')}</span><span>${esc(metaLine(p))}</span></div><h3>${esc(p.title)}</h3><p>${esc(short(summaryOf(p), cls==='large-card'?260:170))}</p><div class="tag-row">${(p.tags||[]).slice(0,4).map(t=>`<em>${esc(t)}</em>`).join('')}</div></a>`;
-}
-function renderDiscovery() {
-  const hero = $('#hero-paper'); if (!hero) return;
-  const papers = state.papers;
-  const first = papers[0];
-  $('#today-count').textContent = papers.length;
-  if (first) {
-    hero.innerHTML = `<p class="eyebrow">Featured paper</p><h2>${esc(first.title)}</h2><p>${esc(short(summaryOf(first), 420))}</p><div class="hero-footer"><span>${esc(metaLine(first))}</span><a class="primary-link" href="${paperHref(first)}">Start reading →</a></div>`;
-  }
-  $('#daily-list').innerHTML = papers.slice(1,6).map((p,i)=>`<a class="daily-item" href="${paperHref(p)}"><span>${String(i+1).padStart(2,'0')}</span><strong>${esc(p.title)}</strong><small>${esc(metaLine(p))}</small></a>`).join('');
-  $('#continue-grid').innerHTML = papers.slice(0,6).map(p=>paperCard(p, 'small-card')).join('');
-}
-function fillFilters() {
-  const topic = $('#topic-filter'), source = $('#source-filter'); if (!topic || !source) return;
-  uniq(state.papers.map(p=>p.topic_slug)).forEach(v => topic.insertAdjacentHTML('beforeend', `<option value="${esc(v)}">${esc(v)}</option>`));
-  uniq(state.papers.map(p=>p.source_label || p.venue)).forEach(v => source.insertAdjacentHTML('beforeend', `<option value="${esc(v)}">${esc(v)}</option>`));
-}
-function renderLibrary() {
-  const grid = $('#paper-grid'); if (!grid) return;
-  const q = ($('#search')?.value || '').toLowerCase();
-  const t = $('#topic-filter')?.value || '';
-  const s = $('#source-filter')?.value || '';
-  const filtered = state.papers.filter(p => {
-    const text = `${p.title} ${summaryOf(p)} ${p.abstract || ''} ${(p.tags||[]).join(' ')}`.toLowerCase();
-    return (!q || text.includes(q)) && (!t || p.topic_slug === t) && (!s || (p.source_label || p.venue) === s);
-  });
-  grid.innerHTML = filtered.map(p=>paperCard(p)).join('') || '<div class="empty">No papers match this filter.</div>';
-}
-function activateView(id) {
-  $$('.side-link').forEach(b=>b.classList.toggle('active', b.dataset.view === id));
-  $$('.view').forEach(v=>v.classList.toggle('active', v.id === id));
-}
-function setupTabs() {
-  $$('.side-link').forEach(btn => btn.addEventListener('click', () => activateView(btn.dataset.view)));
-  $$('[data-view-target]').forEach(el => el.addEventListener('click', () => activateView(el.dataset.viewTarget)));
-}
-function addBubble(role, text) {
-  const log = $('#chat-log'); if (!log) return;
-  log.insertAdjacentHTML('beforeend', `<div class="bubble ${role}">${esc(text)}</div>`);
-  log.scrollTop = log.scrollHeight;
-}
-function setupChat() {
-  const form = $('#chat-form'); if (!form) return;
-  $$('.prompt-chip').forEach(b => b.addEventListener('click', () => { $('#chat-question').value = b.dataset.prompt || b.textContent; $('#chat-question').focus(); }));
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const q = ($('#chat-question')?.value || '').trim(); if (!q) return;
-    const status = $('#chat-status'); const button = form.querySelector('button[type="submit"]');
-    addBubble('user', q); $('#chat-question').value = ''; if(status) status.textContent='thinking…'; if(button) button.disabled=true;
-    try {
-      const body = { question: q, provider_id: $('#chat-provider')?.value || 'deepseek', model: $('#chat-model')?.value || 'deepseek-v4-flash', mode: state.paper ? 'balanced' : 'library', max_tokens: state.paper ? 2400 : 4000 };
-      if (state.paper) body.paper_key = state.paper.paper_id;
-      const res = await fetch('/api/chat', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || data.error || 'chat failed');
-      addBubble('assistant', data.answer || 'No answer returned.');
-    } catch (err) { addBubble('error', `Error: ${err.message || err}`); }
-    finally { if(status) status.textContent='ready'; if(button) button.disabled=false; }
-  });
-}
-function renderPaperPage() {
-  const id = new URLSearchParams(location.search).get('id');
-  const p = state.papers.find(x => x.paper_id === id) || state.papers[0]; state.paper = p;
-  if (!p) return;
-  document.title = `${p.title} · Sidney Deep Paper Reader`;
-  $('#paper-hero').innerHTML = `<p class="eyebrow">${esc(p.topic_slug || 'paper')} · ${esc(p.source_label || p.venue || '')}</p><h1>${esc(p.title)}</h1><p>${esc((p.authors||[]).join(', '))}</p><div class="hero-footer"><span>${esc(metaLine(p))}</span>${p.source_url ? `<a class="primary-link" href="${esc(p.source_url)}" target="_blank" rel="noopener">Source ↗</a>` : ''}</div>`;
-  const sections = [
-    ['summary','中文速览', p.zh_brief || p.tldr || p.summary], ['tldr','TL;DR', p.tldr], ['motivation','Motivation / 研究动机', p.motivation], ['method','Method / 方法', p.method], ['results','Results / 结果', p.results], ['limitations','Limitations / 局限', p.limitations], ['relevance','Why relevant to Sidney PhD / 与我的博士相关性', p.relevance], ['abstract','Abstract', p.abstract]
-  ];
-  $('#paper-content').innerHTML = sections.filter(([, ,v])=>v).map(([id,k,v])=>`<section id="${id}" class="content-section"><h2>${esc(k)}</h2><p>${esc(v)}</p></section>`).join('') || '<section class="content-section"><p>待补充。</p></section>';
-  $('#paper-meta').innerHTML = `<p class="eyebrow">Paper info</p><dl class="meta-list"><dt>Year</dt><dd>${esc(p.display_year || p.year || '—')}</dd><dt>Venue</dt><dd>${esc(p.display_venue || p.venue || p.source_label || '—')}</dd><dt>Tags</dt><dd>${(p.tags||[]).slice(0,6).map(t=>`<em>${esc(t)}</em>`).join(' ') || '—'}</dd></dl>`;
-}
-async function init() {
-  await loadPapers();
-  setupTabs(); setupChat();
-  if (document.body.dataset.page === 'paper') renderPaperPage();
-  else { renderMetrics(); renderDiscovery(); fillFilters(); renderLibrary(); ['search','topic-filter','source-filter'].forEach(id => document.getElementById(id)?.addEventListener('input', renderLibrary)); }
-}
-init().catch(err => { console.error(err); document.body.insertAdjacentHTML('afterbegin', `<pre class="fatal">${esc(err.message || err)}</pre>`); });
+const navItems = [
+  ['discovery','Discovery','index.html'], ['library','Library','library.html'], ['ai','AI Reader','ai.html'], ['admin','Admin','admin.html'], ['models','Models','models.html']
+];
+function renderNav(){ const box=$('[data-nav]'); if(!box) return; box.innerHTML=`<div class="brand-block"><div class="brand-mark">PR</div><div><strong>Paper Reader</strong><span>Sidney private lab</span></div></div><nav class="side-nav">${navItems.map(([id,label,href],i)=>`<a class="side-link ${page===id?'active':''}" href="${href}"><span>${String(i+1).padStart(2,'0')}</span>${label}</a>`).join('')}</nav><div class="sidebar-foot"><span class="live-dot"></span><div><strong>Private access</strong><small>Cloudflare Access</small></div></div>`; }
+async function loadPapers(){ const res=await fetch('data/papers.json',{cache:'no-store'}); state.papers=await res.json(); return state.papers; }
+function uniq(values){ return [...new Set(values.filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b))); }
+function metaLine(p){ return [p.display_year||p.year,p.display_venue||p.venue||p.source_label].filter(Boolean).join(' · '); }
+function summaryOf(p){ return p.zh_brief||p.tldr||p.summary||p.abstract||'待补充。'; }
+function short(t,n=180){ t=String(t||''); return t.length>n?t.slice(0,n)+'…':t; }
+function paperHref(p){ return `paper.html?id=${encodeURIComponent(p.paper_id)}`; }
+function aiHref(p){ return `ai.html?id=${encodeURIComponent(p.paper_id)}`; }
+function allTags(){ return uniq(state.papers.flatMap(p=>Array.isArray(p.tags)?p.tags:[])); }
+function card(p, cls='paper-card'){ return `<a class="${cls}" href="${aiHref(p)}"><div class="card-meta"><span>${esc(p.topic_slug||'paper')}</span><span>${esc(metaLine(p))}</span></div><h3>${esc(p.title)}</h3><p>${esc(short(summaryOf(p), cls==='small-card'?150:210))}</p><div class="tag-row">${(p.tags||[]).slice(0,4).map(t=>`<em>${esc(t)}</em>`).join('')}</div></a>`; }
+function renderMetrics(){ const box=$('#metrics'); if(!box)return; const topics=uniq(state.papers.map(p=>p.topic_slug)); const sources=uniq(state.papers.map(p=>p.source_label||p.venue)); const pdf=state.papers.filter(p=>p.local_document||p.source_url).length; box.innerHTML=[['Papers',state.papers.length,'synced records'],['Topics',topics.length,'Obsidian/Notion groups'],['Sources',sources.length,'venues/feeds'],['PDF-ready',pdf,'documents']].map(([k,v,d])=>`<article class="stat"><strong>${v}</strong><span>${k}</span><small>${d}</small></article>`).join(''); }
+function renderDiscovery(){ const first=state.papers[0]; if(!first)return; $('#today-count').textContent=state.papers.length; $('#hero-paper').innerHTML=`<p class="eyebrow">Featured paper</p><h2>${esc(first.title)}</h2><p>${esc(short(summaryOf(first),420))}</p><div class="hero-footer"><span>${esc(metaLine(first))}</span><a class="primary-link" href="${aiHref(first)}">Read with AI →</a></div>`; $('#daily-list').innerHTML=state.papers.slice(1,6).map((p,i)=>`<a class="daily-item" href="${aiHref(p)}"><span>${String(i+1).padStart(2,'0')}</span><strong>${esc(p.title)}</strong><small>${esc(metaLine(p))}</small></a>`).join(''); $('#continue-grid').innerHTML=state.papers.slice(0,6).map(p=>card(p,'small-card')).join(''); }
+function fillFilters(prefix=''){ const topic=$(`#${prefix}topic-filter`), source=$(`#${prefix}source-filter`), tag=$(`#${prefix}tag-filter`); if(topic) uniq(state.papers.map(p=>p.topic_slug)).forEach(v=>topic.insertAdjacentHTML('beforeend',`<option value="${esc(v)}">${esc(v)}</option>`)); if(source) uniq(state.papers.map(p=>p.source_label||p.venue)).forEach(v=>source.insertAdjacentHTML('beforeend',`<option value="${esc(v)}">${esc(v)}</option>`)); if(tag) allTags().forEach(v=>tag.insertAdjacentHTML('beforeend',`<option value="${esc(v)}">${esc(v)}</option>`)); }
+function filteredPapers(prefix=''){ const q=($(`#${prefix}paper-search`)?.value || $('#search')?.value || '').toLowerCase(); const topic=$(`#${prefix}topic-filter`)?.value || $('#topic-filter')?.value || ''; const source=$(`#${prefix}source-filter`)?.value || ''; const tag=$(`#${prefix}tag-filter`)?.value || $('#tag-filter')?.value || ''; return state.papers.filter(p=>{ const tags=Array.isArray(p.tags)?p.tags:[]; const text=`${p.title} ${summaryOf(p)} ${p.abstract||''} ${tags.join(' ')}`.toLowerCase(); return (!q||text.includes(q)) && (!topic||p.topic_slug===topic) && (!source||(p.source_label||p.venue)===source) && (!tag||tags.includes(tag)); }); }
+function renderLibrary(){ const grid=$('#paper-grid'); if(!grid)return; const papers=filteredPapers(''); grid.innerHTML=papers.map(p=>card(p)).join('')||'<div class="empty">No papers match this filter.</div>'; }
+function pdfUrl(p){ if(p.local_document) return `/paper-assets/document/${encodeURIComponent(p.paper_id)}`; const u=String(p.source_url||''); if(/arxiv\.org\/abs\//.test(u)) return u.replace('/abs/','/pdf/')+'.pdf'; const acl=u.match(/^https?:\/\/aclanthology\.org\/([^/]+)\/?$/); if(acl) return `https://aclanthology.org/${acl[1]}.pdf`; return u; }
+function noteHtml(p){ const sections=[['中文速览',p.zh_brief||p.tldr||p.summary],['TL;DR',p.tldr],['Motivation / 研究动机',p.motivation],['Method / 方法',p.method],['Results / 结果',p.results],['Limitations / 局限',p.limitations],['PhD Relevance',p.relevance],['Abstract',p.abstract]]; return sections.filter(([,v])=>v).map(([k,v])=>`<section class="content-section"><h2>${esc(k)}</h2><p>${esc(v)}</p></section>`).join('') || '<section class="content-section"><p>Notion / Obsidian note fields are not filled yet.</p></section>'; }
+function selectPaper(p){ state.paper=p; const url=new URL(location.href); url.searchParams.set('id',p.paper_id); history.replaceState(null,'',url); $('#ai-paper-header').innerHTML=`<p class="eyebrow">${esc(p.topic_slug||'paper')} · ${esc(p.source_label||p.venue||'')}</p><h1>${esc(p.title)}</h1><p>${esc((p.authors||[]).join(', '))}</p><div class="tag-row">${(p.tags||[]).slice(0,8).map(t=>`<em>${esc(t)}</em>`).join('')}</div>`; const pdf=pdfUrl(p); $('#pdf-frame').src=pdf||'about:blank'; $('#open-source').href=p.source_url||pdf||'#'; $('#pdf-status').textContent=p.local_document?'local synced PDF':(pdf?'external PDF/source':'no PDF found'); $('#synced-note').innerHTML=noteHtml(p); $$('.ai-paper-item').forEach(el=>el.classList.toggle('active',el.dataset.id===p.paper_id)); }
+function renderAiList(){ const list=$('#ai-paper-list'); if(!list)return; const papers=filteredPapers('ai-'); $('#ai-paper-count').textContent=papers.length; list.innerHTML=papers.map(p=>`<button class="ai-paper-item" data-id="${esc(p.paper_id)}"><strong>${esc(p.title)}</strong><span>${esc(metaLine(p))}</span><small>${esc((p.tags||[]).slice(0,3).join(' · '))}</small></button>`).join(''); $$('.ai-paper-item').forEach(b=>b.addEventListener('click',()=>selectPaper(state.papers.find(p=>p.paper_id===b.dataset.id)))); const id=new URLSearchParams(location.search).get('id'); const pdfReady = papers.find(p=>p.local_document||p.source_url) || state.papers.find(p=>p.local_document||p.source_url); const chosen=state.papers.find(p=>p.paper_id===id)||pdfReady||papers[0]||state.papers[0]; if(chosen) selectPaper(chosen); }
+function setupAi(){ fillFilters('ai-'); ['ai-paper-search','ai-topic-filter','ai-tag-filter'].forEach(id=>document.getElementById(id)?.addEventListener('input', renderAiList)); $('#show-pdf')?.addEventListener('click',()=>{ $('#pdf-frame').classList.remove('hidden'); $('#synced-note').classList.add('hidden'); $('#show-pdf').classList.add('active'); $('#show-note').classList.remove('active'); }); $('#show-note')?.addEventListener('click',()=>{ $('#pdf-frame').classList.add('hidden'); $('#synced-note').classList.remove('hidden'); $('#show-note').classList.add('active'); $('#show-pdf').classList.remove('active'); }); renderAiList(); }
+function addBubble(role,text){ const log=$('#chat-log'); if(!log)return; log.insertAdjacentHTML('beforeend',`<div class="bubble ${role}">${esc(text)}</div>`); log.scrollTop=log.scrollHeight; }
+function setupChat(){ const form=$('#chat-form'); if(!form)return; $$('.prompt-chip').forEach(b=>b.addEventListener('click',()=>{ $('#chat-question').value=b.dataset.prompt||b.textContent; $('#chat-question').focus(); })); form.addEventListener('submit',async e=>{ e.preventDefault(); const q=($('#chat-question')?.value||'').trim(); if(!q)return; addBubble('user',q); $('#chat-question').value=''; try{ const body={question:q,provider_id:$('#chat-provider')?.value||'deepseek',model:$('#chat-model')?.value||'deepseek-v4-flash',mode:state.paper?'deep':'library',max_tokens:state.paper?2600:4000}; if(state.paper) body.paper_key=state.paper.paper_id; const res=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); const data=await res.json(); if(!res.ok) throw new Error(data.message||data.error||'chat failed'); addBubble('assistant',data.answer||'No answer returned.'); }catch(err){ addBubble('error',`Error: ${err.message||err}`); } }); }
+function renderPaperPage(){ const id=new URLSearchParams(location.search).get('id'); const p=state.papers.find(x=>x.paper_id===id)||state.papers[0]; state.paper=p; if(!p)return; $('#open-ai-reader').href=aiHref(p); $('#paper-hero').innerHTML=`<p class="eyebrow">${esc(p.topic_slug)} · ${esc(p.source_label||p.venue||'')}</p><h1>${esc(p.title)}</h1><p>${esc((p.authors||[]).join(', '))}</p><div class="hero-footer"><span>${esc(metaLine(p))}</span><a class="primary-link" href="${aiHref(p)}">Open PDF + Chat →</a></div>`; $('#paper-content').innerHTML=noteHtml(p); $('#paper-meta').innerHTML=`<p class="eyebrow">Paper info</p><dl class="meta-list"><dt>Year</dt><dd>${esc(p.display_year||p.year||'—')}</dd><dt>Venue</dt><dd>${esc(p.display_venue||p.venue||p.source_label||'—')}</dd><dt>Tags</dt><dd>${(p.tags||[]).map(t=>`<em>${esc(t)}</em>`).join(' ')||'—'}</dd></dl>`; }
+async function init(){ renderNav(); await loadPapers(); setupChat(); if(page==='discovery'){renderMetrics();renderDiscovery();} if(page==='library'){fillFilters('');renderLibrary();['search','topic-filter','source-filter','tag-filter'].forEach(id=>document.getElementById(id)?.addEventListener('input',renderLibrary));} if(page==='ai') setupAi(); if(page==='paper') renderPaperPage(); }
+init().catch(err=>{ console.error(err); document.body.insertAdjacentHTML('afterbegin',`<pre class="fatal">${esc(err.message||err)}</pre>`); });
