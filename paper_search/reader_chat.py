@@ -38,6 +38,8 @@ def build_chat_messages(
     mode: str = "balanced",
     allowed_roots: list[Path] | None = None,
     max_fulltext_chars: int = 24000,
+    reading_note: str | None = None,
+    selected_visual: dict[str, Any] | None = None,
 ) -> list[dict[str, str]]:
     """Build OpenAI-compatible chat messages for paper or library QA."""
 
@@ -53,9 +55,32 @@ def build_chat_messages(
             allowed_roots=allowed_roots,
             max_fulltext_chars=max_fulltext_chars,
         )
+        extra_parts: list[str] = []
+        if reading_note and reading_note.strip():
+            extra_parts.append(f"[Reader note]\n{reading_note.strip()}")
+        if selected_visual:
+            title = str(selected_visual.get("title") or "Selected visual").strip()
+            page = str(selected_visual.get("page") or "?").strip()
+            caption = str(selected_visual.get("caption") or "").strip()
+            kind = str(selected_visual.get("kind") or "visual").strip()
+            visual_text = f"{title} ({kind}, page {page})"
+            if caption:
+                visual_text += f"\nCaption: {caption}"
+            preview = selected_visual.get("preview")
+            if isinstance(preview, list) and preview:
+                rows = []
+                for row in preview[:4]:
+                    if isinstance(row, list):
+                        cells = [str(cell).strip() for cell in row[:5] if str(cell).strip()]
+                        if cells:
+                            rows.append(" | ".join(cells))
+                if rows:
+                    visual_text += "\nTable preview: " + " / ".join(rows)
+            extra_parts.append(f"[Selected visual]\n{visual_text}")
+        extra_context = "\n\n" + "\n\n".join(extra_parts) if extra_parts else ""
         user_content = (
             "Use the following grounded paper context to answer the user's question.\n\n"
-            f"[Paper context]\n{context.text}\n\n"
+            f"[Paper context]\n{context.text}{extra_context}\n\n"
             f"[User question]\n{question}"
         )
     else:
@@ -130,6 +155,9 @@ def generate_chat_response(
     mode = str(payload.get("mode") or ("balanced" if paper_key else "library")).strip()
     max_tokens = int(payload.get("max_tokens") or (2400 if paper_key else 4000))
     max_fulltext_chars = int(payload.get("max_fulltext_chars") or 24000)
+    reading_note = str(payload.get("reading_note") or "").strip() or None
+    selected_visual_raw = payload.get("selected_visual")
+    selected_visual = selected_visual_raw if isinstance(selected_visual_raw, dict) else None
 
     messages = build_chat_messages(
         site_dir,
@@ -138,6 +166,8 @@ def generate_chat_response(
         mode=mode,
         allowed_roots=allowed_roots,
         max_fulltext_chars=max_fulltext_chars,
+        reading_note=reading_note,
+        selected_visual=selected_visual,
     )
     kwargs = build_chat_request_kwargs(
         registry,

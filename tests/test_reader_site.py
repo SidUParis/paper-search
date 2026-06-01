@@ -101,12 +101,29 @@ def test_render_site_adds_global_ai_terminal(tmp_path: Path):
     assert "AI Reader" in ai
     assert "id=\"chat-form\"" in ai
     assert "note-save-card" not in ai
-    assert "Save to Notion" not in ai
+    assert "Save current AI answer" not in ai
     assert "mini-send" in ai
     assert "fetch('/api/chat'" in app_js
     assert "detectNotionIntent" in app_js
     assert "confirm-note-save" in app_js
     assert "fetch('/api/notes/save'" in app_js
+
+
+def test_ai_reader_exposes_pdf_notes_and_extracted_figures(tmp_path: Path):
+    papers = [ReaderPaper(paper_id="p1", title="Bias Paper", summary="Summary")]
+
+    render_site(papers, tmp_path, site_title="Test Reader")
+
+    ai = (tmp_path / "ai.html").read_text(encoding="utf-8")
+    app_js = (tmp_path / "assets" / "app.js").read_text(encoding="utf-8")
+
+    assert "reading-note-editor" in ai
+    assert "figure-gallery" in ai
+    assert "Use in chat" in app_js
+    assert "selectedVisual" in app_js
+    assert "reading_note" in app_js
+    assert "extract-current-figures" in ai
+    assert "/api/figures/extract" in app_js
 
 
 def test_render_site_adds_per_paper_ask_panel_with_presets(tmp_path: Path):

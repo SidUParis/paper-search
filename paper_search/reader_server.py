@@ -297,6 +297,21 @@ def create_reader_handler(config: ReaderServerConfig):
                 self._send_json(result)
                 return
 
+            if path == "/api/figures/extract":
+                from paper_search.reader_figures import extract_figures_for_site_paper
+
+                paper_key = str(payload.get("paper_key") or payload.get("paper_id") or "").strip()
+                if not paper_key:
+                    self._send_json({"error": "figure_extract_failed", "message": "paper_key is required"}, status=HTTPStatus.BAD_REQUEST)
+                    return
+                try:
+                    result = extract_figures_for_site_paper(site_dir=config.site_dir, paper_key=paper_key)
+                except (KeyError, ValueError, RuntimeError) as exc:
+                    self._send_json({"error": "figure_extract_failed", "message": str(exc)}, status=HTTPStatus.BAD_REQUEST)
+                    return
+                self._send_json(result)
+                return
+
             if path == "/api/models":
                 from paper_search.reader_models import ModelProvider, ReaderModelRegistry
 

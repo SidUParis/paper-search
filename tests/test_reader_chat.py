@@ -37,6 +37,22 @@ def test_build_chat_messages_for_single_paper_includes_context_and_chinese_instr
     assert "这篇论文贡献是什么" in messages[1]["content"]
 
 
+def test_build_chat_messages_can_include_reader_note_and_selected_visual(tmp_path: Path):
+    messages = build_chat_messages(
+        _site(tmp_path),
+        question="结合我标注的位置解释实验。",
+        paper_key="p1",
+        reading_note="这里像 Notion margin note: FrenchBBQ 可复用。",
+        selected_visual={"title": "Figure 2 · Pipeline", "page": 4, "caption": "Dataset pipeline"},
+    )
+
+    content = messages[1]["content"]
+    assert "[Reader note]" in content
+    assert "FrenchBBQ 可复用" in content
+    assert "[Selected visual]" in content
+    assert "Figure 2 · Pipeline" in content
+
+
 def test_build_chat_messages_for_library_uses_related_papers(tmp_path: Path):
     messages = build_chat_messages(
         _site(tmp_path),

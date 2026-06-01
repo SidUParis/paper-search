@@ -97,6 +97,36 @@ def _append_section(parts: list[str], label: str, value: Any) -> None:
         parts.append(f"[{label}] {text}")
 
 
+def _visual_asset_lines(figures: Any, *, max_items: int = 10) -> list[str]:
+    """Format extracted PDF figures/tables as LLM-readable context."""
+
+    if not isinstance(figures, list):
+        return []
+    lines: list[str] = []
+    for idx, raw in enumerate(figures[:max_items], start=1):
+        if not isinstance(raw, dict):
+            continue
+        kind = str(raw.get("kind") or "visual").strip()
+        title = str(raw.get("title") or f"Visual {idx}").strip()
+        page = str(raw.get("page") or "?").strip()
+        caption = str(raw.get("caption") or "").strip()
+        line = f"- {title} ({kind}, page {page})"
+        if caption:
+            line += f": {caption}"
+        preview = raw.get("preview")
+        if isinstance(preview, list) and preview:
+            preview_lines: list[str] = []
+            for row in preview[:4]:
+                if isinstance(row, list):
+                    cells = [str(cell).strip() for cell in row[:5] if str(cell).strip()]
+                    if cells:
+                        preview_lines.append(" | ".join(cells))
+            if preview_lines:
+                line += "\n  Table preview: " + " / ".join(preview_lines)
+        lines.append(line)
+    return lines
+
+
 def build_paper_context(
     site_dir: Path | str,
     paper_key: str,
@@ -132,6 +162,11 @@ def build_paper_context(
     _append_section(parts, "Results", paper.get("results"))
     _append_section(parts, "Limitations", paper.get("limitations"))
     _append_section(parts, "Relevance", paper.get("relevance"))
+
+    visual_lines = _visual_asset_lines(paper.get("figures"))
+    if visual_lines:
+        parts.append("[Extracted visuals]\n" + "\n".join(visual_lines))
+        sources.append("Extracted visuals")
 
     if mode in {"balanced", "deep"}:
         fulltext = _safe_read_text(str(paper.get("local_fulltext") or ""), allowed_roots)

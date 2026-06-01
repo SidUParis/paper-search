@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 import csv
+import json
 import re
 from pathlib import Path
 from typing import Any
@@ -132,3 +133,59 @@ def extract_pdf_gallery(
         doc.close()
 
     return [asdict(asset) for asset in assets]
+
+
+def _load_site_papers(site_dir: Path) -> list[dict[str, Any]]:
+    data_path = site_dir / "data" / "papers.json"
+    if not data_path.exists():
+        return []
+    data = json.loads(data_path.read_text(encoding="utf-8"))
+    if isinstance(data, list):
+        return [item for item in data if isinstance(item, dict)]
+    if isinstance(data, dict) and isinstance(data.get("papers"), list):
+        return [item for item in data["papers"] if isinstance(item, dict)]
+    return []
+
+
+def extract_figures_for_site_paper(*, site_dir: str | Path, paper_key: str) -> dict[str, Any]:
+    """Extract figures/tables for one generated-site paper and update papers.json.
+
+    This powers the in-reader "Extract current PDF figures" button. If the PDF is
+    not already cached, the paper's source URL is resolved and downloaded through
+    the existing fulltext cache, then only browser-safe relative asset URLs are
+    written back to the generated site metadata.
+    """
+
+    site = Path(site_dir)
+    papers = _load_site_papers(site)
+    paper = next((p for p in papers if str(p.get("paper_id") or "") == paper_key), None)
+    if paper is None:
+        raise KeyError(f"paper not found: {paper_key}")
+
+    pdf_source = str(paper.get("local_document") or "").strip()
+    source_url = str(paper.get("source_url") or "").strip()
+    if not pdf_source and source_url:
+        from paper_search.fulltext import download_document, pdf_cache_path, resolve_pdf_url
+
+        cached = pdf_cache_path(source_url)
+        if cached.exists():
+            pdf_source = str(cached)
+        else:
+            resolved = resolve_pdf_url(source_url)
+            if not resolved:
+                raise ValueError("no resolvable PDF URL for this paper")
+            path, mode, _fetched = download_document(source_url, resolved_url=resolved)
+            if mode != "pdf":
+                raise ValueError("downloaded document is not a PDF")
+            pdf_source = str(path)
+    if not pdf_source:
+        raise ValueError("paper has no local or downloadable PDF")
+
+    figures = extract_pdf_gallery(
+        paper_id=paper_key,
+        pdf_path=pdf_source,
+        output_assets_dir=site / "assets" / "paper-assets",
+    )
+    paper["figures"] = figures
+    (site / "data" / "papers.json").write_text(json.dumps(papers, ensure_ascii=False, indent=2), encoding="utf-8")
+    return {"ok": True, "paper_id": paper_key, "figures": figures, "count": len(figures)}

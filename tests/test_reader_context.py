@@ -23,6 +23,22 @@ def _site(tmp_path: Path) -> Path:
             "topic_slug": "bias-fairness",
             "source_label": "ACL",
             "local_fulltext": str(fulltext),
+            "figures": [
+                {
+                    "kind": "image",
+                    "title": "Figure 1 · Dataset pipeline",
+                    "page": 3,
+                    "src": "assets/paper-assets/p1/fig1.png",
+                    "caption": "Pipeline for multilingual BBQ data construction.",
+                },
+                {
+                    "kind": "table",
+                    "title": "Table 2 · Accuracy by language",
+                    "page": 6,
+                    "src": "assets/paper-assets/p1/table2.csv",
+                    "preview": [["Language", "Accuracy"], ["French", "71"]],
+                },
+            ],
             "tags": ["BBQ", "fairness"],
         },
         {
@@ -66,6 +82,19 @@ def test_build_paper_context_uses_metadata_and_allowed_fulltext(tmp_path: Path):
     assert "[Chinese brief] 中文简述" in context.text
     assert "[Fulltext excerpt]" in context.text
     assert "RESULTS important ending" in context.text
+
+
+def test_build_paper_context_includes_extracted_visual_assets(tmp_path: Path):
+    site = _site(tmp_path)
+
+    context = build_paper_context(site, "p1", mode="balanced", allowed_roots=[tmp_path])
+
+    assert "[Extracted visuals]" in context.text
+    assert "Figure 1 · Dataset pipeline" in context.text
+    assert "Pipeline for multilingual BBQ data construction" in context.text
+    assert "Table 2 · Accuracy by language" in context.text
+    assert "French | 71" in context.text
+    assert "Extracted visuals" in context.sources
 
 
 def test_build_paper_context_rejects_fulltext_outside_allowed_roots(tmp_path: Path):

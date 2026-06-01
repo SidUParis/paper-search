@@ -198,3 +198,24 @@ def test_notes_save_api_writes_to_notion_without_leaking_token(tmp_path: Path, m
     assert payload["paper_id"] == "p1"
     assert "token" not in text.lower()
     assert "secret" not in text.lower()
+
+
+def test_figures_extract_api_updates_current_paper_without_leaking_paths(tmp_path: Path, monkeypatch):
+    site = _make_site(tmp_path)
+
+    def fake_extract_figures_for_site_paper(**kwargs):
+        assert kwargs["site_dir"] == site
+        assert kwargs["paper_key"] == "p1"
+        return {"ok": True, "paper_id": "p1", "figures": [{"title": "Figure 1", "src": "assets/paper-assets/p1/f.png"}]}
+
+    monkeypatch.setattr("paper_search.reader_figures.extract_figures_for_site_paper", fake_extract_figures_for_site_paper)
+    handler = create_reader_handler(ReaderServerConfig(site_dir=site, profile="private", site_title="Test Reader"))
+
+    response = handler.handle_test_request("/api/figures/extract", method="POST", json_body={"paper_key": "p1"})
+
+    assert response.status == 200
+    text = response.body.decode("utf-8")
+    payload = json.loads(text)
+    assert payload["figures"][0]["title"] == "Figure 1"
+    assert str(tmp_path) not in text
+    assert "secret" not in text.lower()
