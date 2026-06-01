@@ -199,6 +199,8 @@ def test_reader_stylesheet_is_not_line_numbered_or_truncated(tmp_path: Path):
     assert css.lstrip().startswith("@import")
     assert ".reader-app" in css
     assert ".figure-viewer" in css
+    assert "AI Reader right panel color unification" in css
+    assert ".paper-studio .chat-starters .prompt-chip" in css
 
 
 def test_render_site_adds_per_paper_ask_panel_with_presets(tmp_path: Path):

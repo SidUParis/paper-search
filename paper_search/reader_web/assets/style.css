@@ -62,3 +62,19 @@
 .paper-studio .reader-center{background:var(--bg)}
 .paper-studio .reader-chat{background:var(--surface-low);border-left:1px solid var(--line)}
 .paper-studio .paper-intel-card,.paper-studio .pdf-shell,.paper-studio .contextual-chat-card{background:var(--surface);border-color:var(--line)}
+
+/* AI Reader right panel color unification: remove leftover beige chat accents */
+.paper-studio .reader-chat{background:linear-gradient(180deg,rgba(252,248,249,.96),rgba(246,243,244,.98));border-left:1px solid var(--line)}
+.paper-studio .contextual-chat-card{background:rgba(255,255,255,.76);border:1px solid var(--line);border-radius:18px;padding:14px;box-shadow:0 16px 46px rgba(33,36,44,.055)}
+.paper-studio .chat-log{background:linear-gradient(180deg,#fff,#fbf8f9);border:1px solid var(--line);border-radius:16px;padding:12px;scrollbar-color:#bbb4bd transparent}
+.paper-studio .bubble{background:#f6f3f4;border:1px solid #e6e2e7;border-radius:16px;color:var(--text);box-shadow:none}
+.paper-studio .bubble.assistant{background:#f5f1f3}
+.paper-studio .bubble.user{background:#1b1b1c;color:#fff;border-color:#1b1b1c}
+.paper-studio .chat-starters{gap:8px}
+.paper-studio .chat-starters .prompt-chip,.paper-studio .prompt-chip{background:#fff;border:1px solid var(--line);border-radius:14px;color:#2f3036;box-shadow:0 8px 24px rgba(33,36,44,.035)}
+.paper-studio .chat-starters .prompt-chip:hover,.paper-studio .prompt-chip:hover{background:#f2f4ff;border-color:#c8d0ff;color:var(--blue)}
+.paper-studio .paper-composer{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 14px 38px rgba(33,36,44,.07)}
+.paper-studio .paper-composer textarea{color:var(--text)}
+.paper-studio .paper-composer .mini-send{background:#1b1b1c;color:#fff;border-radius:999px!important}
+.paper-studio .model-dock{background:rgba(255,255,255,.78)!important;border:1px solid var(--line)!important;border-radius:16px;padding:12px!important;box-shadow:0 12px 34px rgba(33,36,44,.045)}
+.paper-studio .model-dock select,.paper-studio .model-dock input{background:#fff!important;border:1px solid var(--line)!important;color:var(--text)!important;border-radius:12px!important}
