@@ -172,3 +172,29 @@ def test_rank_api_returns_llm_reranked_papers(tmp_path: Path, monkeypatch):
     payload = json.loads(response.body.decode("utf-8"))
     assert payload["results"][0]["paper_id"] == "p1"
     assert "api_key" not in response.body.decode("utf-8").lower()
+
+
+def test_notes_save_api_writes_to_notion_without_leaking_token(tmp_path: Path, monkeypatch):
+    site = _make_site(tmp_path)
+
+    def fake_save_note_to_notion(**kwargs):
+        assert kwargs["site_dir"] == site
+        assert kwargs["payload"]["paper_key"] == "p1"
+        return {"ok": True, "paper_id": "p1", "mode": "append", "destination": "AI Note"}
+
+    monkeypatch.setattr("paper_search.reader_notes.save_note_to_notion", fake_save_note_to_notion)
+    handler = create_reader_handler(ReaderServerConfig(site_dir=site, profile="private", site_title="Test Reader"))
+
+    response = handler.handle_test_request(
+        "/api/notes/save",
+        method="POST",
+        json_body={"paper_key": "p1", "question": "贡献？", "answer": "回答", "destination": "AI Note"},
+    )
+
+    assert response.status == 200
+    text = response.body.decode("utf-8")
+    payload = json.loads(text)
+    assert payload["ok"] is True
+    assert payload["paper_id"] == "p1"
+    assert "token" not in text.lower()
+    assert "secret" not in text.lower()

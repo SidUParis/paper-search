@@ -275,6 +275,28 @@ def create_reader_handler(config: ReaderServerConfig):
                 self._send_json(result)
                 return
 
+            if path == "/api/notes/preview":
+                from paper_search.reader_notes import preview_note_update
+
+                try:
+                    result = preview_note_update(site_dir=config.site_dir, payload=payload)
+                except (KeyError, ValueError) as exc:
+                    self._send_json({"error": "note_preview_failed", "message": str(exc)}, status=HTTPStatus.BAD_REQUEST)
+                    return
+                self._send_json(result)
+                return
+
+            if path == "/api/notes/save":
+                from paper_search.reader_notes import save_note_to_notion
+
+                try:
+                    result = save_note_to_notion(site_dir=config.site_dir, payload=payload)
+                except (KeyError, ValueError, RuntimeError) as exc:
+                    self._send_json({"error": "note_save_failed", "message": str(exc)}, status=HTTPStatus.BAD_REQUEST)
+                    return
+                self._send_json(result)
+                return
+
             if path == "/api/models":
                 from paper_search.reader_models import ModelProvider, ReaderModelRegistry
 

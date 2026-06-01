@@ -100,7 +100,9 @@ def test_render_site_adds_global_ai_terminal(tmp_path: Path):
     assert "AI Reader" in index
     assert "AI Reader" in ai
     assert "id=\"chat-form\"" in ai
+    assert "Save to Notion" in ai
     assert "fetch('/api/chat'" in app_js
+    assert "fetch('/api/notes/save'" in app_js
 
 
 def test_render_site_adds_per_paper_ask_panel_with_presets(tmp_path: Path):
