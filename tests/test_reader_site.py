@@ -84,6 +84,8 @@ def test_render_site_writes_index_detail_assets_and_escapes_html(tmp_path: Path)
     assert "paper.html?id=" in app_js
     assert "data/daily-featured.json" in app_js
     assert "Featured from daily digest" in app_js
+    assert "https://www.xfairllm.com/" in app_js
+    assert "Back to xfairllm.com" in app_js
     assert "papers/p1.html" not in index
     assert "papers/p2.html" not in index
     assert "<script>alert(1)</script>" not in index
