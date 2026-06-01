@@ -57,13 +57,6 @@
       <div id="insight-meta" class="intel-meta"></div>
     </section>
 
-    <section class="chat-config compact-config">
-      <p class="eyebrow">Model</p>
-      <strong>Contextual Chat</strong>
-      <select id="chat-provider"><option value="deepseek">DeepSeek</option><option value="openrouter">OpenRouter</option><option value="openai">OpenAI</option></select>
-      <input id="chat-model" value="deepseek-v4-flash" />
-    </section>
-
     <section class="contextual-chat-card">
       <p class="eyebrow">Contextual Chat</p>
       <div class="prompt-row vertical">
@@ -76,6 +69,13 @@
     </section>
 
     <form id="chat-form" class="floating-composer paper-composer"><textarea id="chat-question" placeholder="Ask about this paper…" rows="2"></textarea><button type="submit">➤</button></form>
+
+    <section class="chat-config compact-config model-dock">
+      <p class="eyebrow">AI Model</p>
+      <div class="model-line"><strong>Contextual Chat</strong><span>server-side key</span></div>
+      <select id="chat-provider"><option value="deepseek">DeepSeek</option><option value="openrouter">OpenRouter</option><option value="openai">OpenAI</option></select>
+      <input id="chat-model" value="deepseek-v4-flash" />
+    </section>
   </aside>
   <script src="assets/app.js?v=multi-2"></script>
 </body>
