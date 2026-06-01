@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import time
 import click
@@ -414,6 +415,28 @@ def summarize_fulltext_all(source: str, limit: int, force_refresh: bool, overwri
 
     console.print(Panel("[bold]Full-text summarization: all topics[/bold]", style="magenta"))
     _render_fulltext_events(summarize_all_topics_fulltext(limit=limit, source=source, force_refresh=force_refresh, overwrite=overwrite))
+
+
+@main.command("export-reader-site")
+@click.option("--topic", "topic_slug", default="all", help="Topic slug to export, or 'all'")
+@click.option("--source", type=click.Choice(["all", "acl", "arxiv", "scholar"]), default="all")
+@click.option("--output", "output_dir", default="reader-site", help="Output directory for static site")
+@click.option("--limit", type=int, default=None, help="Maximum papers to export across selected sources")
+@click.option("--site-title", default="Sidney Deep Paper Reader", help="Title shown in the generated site")
+def export_reader_site_cmd(topic_slug: str, source: str, output_dir: str, limit: int | None, site_title: str):
+    """Export a GitHub-Pages-friendly static reader from Notion/paper-search data."""
+    from paper_search.reader_site import export_reader_site
+
+    console.print(Panel(f"[bold]Export reader site:[/bold] {topic_slug} / {source}", style="green"))
+    summary = export_reader_site(
+        topic_slug=topic_slug,
+        source=source,
+        output_dir=output_dir,
+        limit=limit,
+        site_title=site_title,
+    )
+    console.print(f"[green]Reader site written:[/green] {summary['output_dir']}")
+    console.print(json.dumps(summary, ensure_ascii=False, indent=2))
 
 
 @main.command("review-init")
