@@ -423,7 +423,8 @@ def summarize_fulltext_all(source: str, limit: int, force_refresh: bool, overwri
 @click.option("--output", "output_dir", default="reader-site", help="Output directory for static site")
 @click.option("--limit", type=int, default=None, help="Maximum papers to export across selected sources")
 @click.option("--site-title", default="Sidney Deep Paper Reader", help="Title shown in the generated site")
-def export_reader_site_cmd(topic_slug: str, source: str, output_dir: str, limit: int | None, site_title: str):
+@click.option("--profile", type=click.Choice(["private", "public"]), default="private", help="Export profile: private keeps local links; public removes secrets/private paths")
+def export_reader_site_cmd(topic_slug: str, source: str, output_dir: str, limit: int | None, site_title: str, profile: str):
     """Export a GitHub-Pages-friendly static reader from Notion/paper-search data."""
     from paper_search.reader_site import export_reader_site
 
@@ -434,6 +435,7 @@ def export_reader_site_cmd(topic_slug: str, source: str, output_dir: str, limit:
         output_dir=output_dir,
         limit=limit,
         site_title=site_title,
+        profile=profile,
     )
     console.print(f"[green]Reader site written:[/green] {summary['output_dir']}")
     console.print(json.dumps(summary, ensure_ascii=False, indent=2))
