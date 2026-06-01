@@ -126,6 +126,22 @@ def test_ai_reader_exposes_pdf_notes_and_extracted_figures(tmp_path: Path):
     assert "/api/figures/extract" in app_js
 
 
+def test_ai_reader_exposes_notebooklm_audio_tab(tmp_path: Path):
+    papers = [ReaderPaper(paper_id="p1", title="Bias Paper", notebooklm_audio="https://example.com/audio.mp3")]
+
+    render_site(papers, tmp_path, site_title="Test Reader")
+
+    ai = (tmp_path / "ai.html").read_text(encoding="utf-8")
+    app_js = (tmp_path / "assets" / "app.js").read_text(encoding="utf-8")
+
+    assert "show-audio" in ai
+    assert "audio-player-card" in ai
+    assert "NotebookLM Audio" in ai
+    assert "function audioUrl" in app_js
+    assert "<audio controls" in app_js
+    assert "/paper-assets/audio/" in app_js
+
+
 def test_ai_reader_opens_figures_in_zoomable_lightbox_not_download_links(tmp_path: Path):
     papers = [
         ReaderPaper(

@@ -56,6 +56,24 @@ def test_static_index_and_asset_are_served(tmp_path: Path):
     assert "javascript" in asset.headers["Content-Type"]
 
 
+def test_paper_audio_asset_is_served_through_safe_route(tmp_path: Path):
+    site = _make_site(tmp_path)
+    audio = tmp_path / "deep-dive.mp3"
+    audio.write_bytes(b"ID3demo")
+    data_path = site / "data" / "papers.json"
+    papers = json.loads(data_path.read_text(encoding="utf-8"))
+    papers[0]["notebooklm_audio"] = str(audio)
+    data_path.write_text(json.dumps(papers), encoding="utf-8")
+    config = ReaderServerConfig(site_dir=site, profile="private", site_title="Test Reader", allowed_context_roots=[tmp_path])
+    handler = create_reader_handler(config)
+
+    response = handler.handle_test_request("/paper-assets/audio/p1")
+
+    assert response.status == 200
+    assert response.body == b"ID3demo"
+    assert response.headers["Content-Type"].startswith("audio/")
+
+
 def test_papers_api_loads_generated_metadata(tmp_path: Path):
     response = _request(tmp_path, "/api/papers")
 

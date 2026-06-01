@@ -30,13 +30,18 @@ def _path_is_allowed(path: Path, roots: list[Path]) -> bool:
 
 
 def _paper_asset_path(site_dir: Path, paper_key: str, kind: str, allowed_roots: list[Path]) -> Path | None:
-    if kind not in {"document", "fulltext", "note"}:
+    if kind not in {"document", "fulltext", "note", "audio"}:
         return None
     papers = _load_papers(site_dir)
     paper = next((p for p in papers if str(p.get("paper_id") or "") == paper_key), None)
     if paper is None:
         return None
-    field = {"document": "local_document", "fulltext": "local_fulltext", "note": "obsidian_note"}[kind]
+    field = {
+        "document": "local_document",
+        "fulltext": "local_fulltext",
+        "note": "obsidian_note",
+        "audio": "notebooklm_audio",
+    }[kind]
     raw = str(paper.get(field) or "")
     if not raw:
         return None

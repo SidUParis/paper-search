@@ -49,7 +49,7 @@
       <div id="insight-meta" class="intel-meta"></div>
     </section>
     <section class="pdf-shell reading-workspace">
-      <div class="pdf-toolbar"><div><strong>PDF Preview</strong><span id="pdf-status">default view</span></div><div class="pdf-actions"><button id="show-pdf" class="tiny active">PDF</button><button id="show-figures" class="tiny">Figures</button><button id="show-note" class="tiny">Note</button><a id="open-source" class="tiny ghost" target="_blank" rel="noopener">Source</a></div></div>
+      <div class="pdf-toolbar"><div><strong>PDF Preview</strong><span id="pdf-status">default view</span></div><div class="pdf-actions"><button id="show-pdf" class="tiny active">PDF</button><button id="show-figures" class="tiny">Figures</button><button id="show-note" class="tiny">Note</button><button id="show-audio" class="tiny">Audio</button><a id="open-source" class="tiny ghost" target="_blank" rel="noopener">Source</a></div></div>
       <div class="reading-canvas">
         <iframe id="pdf-frame" title="Paper PDF preview"></iframe>
         <aside class="reading-note-panel" aria-label="Reading notes">
@@ -63,6 +63,10 @@
         <div class="section-head"><span>Extracted Figures & Tables</span><strong id="figure-count">0</strong></div>
         <button id="extract-current-figures" class="tiny extract-figures-btn">Extract current PDF figures</button>
         <div id="figure-gallery" class="figure-gallery"></div>
+      </section>
+      <section id="audio-panel" class="audio-panel hidden" aria-label="NotebookLM audio deep dive">
+        <div class="section-head"><span>NotebookLM Audio</span><strong>Deep Dive</strong></div>
+        <div id="audio-player-card" class="audio-player-card"></div>
       </section>
     </section>
   </main>
