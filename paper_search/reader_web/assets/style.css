@@ -138,3 +138,12 @@
 .paper-studio .composer-icon.active svg{stroke:var(--blue)}
 .paper-studio .composer-icon.active{background:#eef2ff;color:var(--blue)}
 
+
+
+/* Main-site logo sync */
+.brand-link .brand-logo{width:72px;height:auto;object-fit:contain;display:block;flex:0 0 auto;margin-left:-4px}
+.brand-link{align-items:center;gap:10px}
+.brand-link strong{font-weight:800;letter-spacing:-.02em}
+.brand-link span{font-size:11px;color:var(--muted)}
+.paper-studio .brand-link .brand-logo{width:74px}
+@media(max-width:900px){.brand-link .brand-logo{width:64px}}

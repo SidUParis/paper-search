@@ -73,6 +73,7 @@ def test_render_site_writes_index_detail_assets_and_escapes_html(tmp_path: Path)
     assert (tmp_path / "index.html").exists()
     assert (tmp_path / "assets" / "style.css").exists()
     assert (tmp_path / "assets" / "app.js").exists()
+    assert (tmp_path / "assets" / "xfair-logo.png").exists()
     assert (tmp_path / "data" / "papers.json").exists()
     assert (tmp_path / "papers" / "p1.html").exists()
     assert (tmp_path / "papers" / "p2.html").exists()
@@ -86,6 +87,8 @@ def test_render_site_writes_index_detail_assets_and_escapes_html(tmp_path: Path)
     assert "data/daily-featured.json" in app_js
     assert "Featured from daily digest" in app_js
     assert "https://www.xfairllm.com/" in app_js
+    assert "XFaiR LLM logo" in app_js
+    assert "xfair-logo.png" in app_js
     assert "Back to xfairllm.com" in app_js
     assert "papers/p1.html" not in index
     assert "papers/p2.html" not in index
@@ -104,6 +107,8 @@ def test_render_site_adds_global_ai_terminal(tmp_path: Path):
     app_js = (tmp_path / "assets" / "app.js").read_text(encoding="utf-8")
     assert "AI Reader" in index
     assert "AI Reader" in ai
+    assert "xfair-logo.png" in ai
+    assert "XFaiR LLM logo" in ai
     assert "ai-side-nav" in ai
     assert "<span>01</span>Discovery" in ai
     assert "<span>03</span>AI Reader" in ai
@@ -223,6 +228,8 @@ def test_reader_stylesheet_is_not_line_numbered_or_truncated(tmp_path: Path):
     assert ".paper-studio .paper-composer{grid-template-columns:minmax(0,1fr)!important" in css
     assert ".paper-studio .composer-control-row" in css
     assert ".paper-studio .composer-icon svg" in css
+    assert "Main-site logo sync" in css
+    assert ".brand-link .brand-logo" in css
 
 
 def test_render_site_adds_per_paper_ask_panel_with_presets(tmp_path: Path):
