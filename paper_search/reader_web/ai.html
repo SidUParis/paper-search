@@ -88,14 +88,24 @@
       </div></div>
     </section>
 
-    <form id="chat-form" class="floating-composer paper-composer"><textarea id="chat-question" placeholder="Ask naturally: 解释这篇 / 保存到 Notion / 更新 PhD Relevance…" rows="2"></textarea><button class="mini-send" type="submit">➤</button></form>
-
-    <section class="chat-config compact-config model-dock">
-      <p class="eyebrow">AI Model</p>
-      <div class="model-line"><strong>Contextual Chat</strong><span>server-side key</span></div>
-      <select id="chat-provider"><option value="deepseek">DeepSeek</option><option value="openrouter">OpenRouter</option><option value="openai">OpenAI</option></select>
-      <input id="chat-model" value="deepseek-v4-flash" />
-    </section>
+    <form id="chat-form" class="floating-composer paper-composer">
+      <div class="composer-tools" aria-label="Chat tools">
+        <label class="composer-icon" aria-label="Attach temporary session file" title="Attach temporary session file"><span>📎</span><input id="chat-file-input" type="file" multiple /></label>
+        <button id="web-search-toggle" class="composer-icon" type="button" aria-pressed="false" title="联网搜索"><span>🌐</span></button>
+      </div>
+      <textarea id="chat-question" placeholder="Ask naturally: 解释这篇 / 保存到 Notion / 更新 PhD Relevance…" rows="2"></textarea>
+      <select id="chat-model-preset" class="composer-model" aria-label="Model preset list">
+        <option value="deepseek|deepseek-v4-flash">DeepSeek v4 flash</option>
+        <option value="deepseek|deepseek-chat">DeepSeek chat</option>
+        <option value="openrouter|openai/gpt-4.1-nano">GPT-4.1-nano</option>
+        <option value="openrouter|anthropic/claude-3.5-sonnet">Claude Sonnet</option>
+        <option value="openai|gpt-4.1-nano">OpenAI GPT-4.1-nano</option>
+      </select>
+      <button class="mini-send" type="submit">➤</button>
+      <div id="upload-chip-row" class="upload-chip-row" aria-live="polite"></div>
+      <input id="chat-provider" type="hidden" value="deepseek" />
+      <input id="chat-model" type="hidden" value="deepseek-v4-flash" />
+    </form>
   </aside>
   <script src="assets/app.js?v=multi-2"></script>
 </body>

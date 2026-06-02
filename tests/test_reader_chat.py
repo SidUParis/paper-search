@@ -54,6 +54,73 @@ def test_build_chat_messages_can_include_reader_note_and_selected_visual(tmp_pat
     assert "Figure 2 · Pipeline" in content
 
 
+def test_build_chat_messages_can_include_ephemeral_file_upload_context(tmp_path: Path):
+    messages = build_chat_messages(
+        _site(tmp_path),
+        question="结合上传文件解释。",
+        paper_key="p1",
+        attachments=[
+            {"name": "review-notes.md", "type": "text/markdown", "text": "UPLOAD_SENTINEL reviewer note evidence"},
+            {"name": "too-large.txt", "type": "text/plain", "text": "x" * 130000},
+        ],
+    )
+
+    content = messages[1]["content"]
+    assert "[Uploaded session files]" in content
+    assert "review-notes.md" in content
+    assert "UPLOAD_SENTINEL" in content
+    assert "[file clipped]" in content
+
+
+def test_generate_chat_response_can_add_web_search_context(tmp_path: Path, monkeypatch):
+    from paper_search import reader_chat
+
+    site = _site(tmp_path)
+    state = tmp_path / ".reader"
+    registry = ReaderModelRegistry(state)
+    registry.upsert_provider(
+        ModelProvider(
+            id="test-provider",
+            label="Test",
+            base_url="https://llm.example.com/v1",
+            models=["test-model"],
+            default_model="test-model",
+        )
+    )
+    registry.set_provider_key("test-provider", "sk-test")
+    monkeypatch.setattr(reader_chat, "web_search_snippets", lambda query, limit=5: ["WEB_SEARCH_SENTINEL result"])
+    calls = []
+
+    class FakeCompletions:
+        def create(self, **kwargs):
+            calls.append(kwargs)
+
+            class Message:
+                content = "这是联网回答"
+
+            class Choice:
+                message = Message()
+
+            class Response:
+                choices = [Choice()]
+
+            return Response()
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            self.chat = type("Chat", (), {"completions": FakeCompletions()})()
+
+    result = generate_chat_response(
+        registry=registry,
+        site_dir=site,
+        payload={"provider_id": "test-provider", "model": "test-model", "question": "最新进展？", "web_search": True},
+        client_factory=FakeClient,
+    )
+
+    assert result["web_search"] is True
+    assert "WEB_SEARCH_SENTINEL" in calls[0]["messages"][1]["content"]
+
+
 def test_build_chat_messages_for_paper_defaults_to_full_local_fulltext(tmp_path: Path):
     site = tmp_path / "site"
     fulltext = tmp_path / "fulltext" / "p1.md"

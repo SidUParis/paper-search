@@ -2,8 +2,13 @@
 
 from __future__ import annotations
 
+from base64 import b64decode
+from html import unescape
 from pathlib import Path
+import re
 from typing import Any, Callable
+from urllib.parse import quote_plus
+from urllib.request import Request, urlopen
 
 from paper_search.reader_context import build_paper_context, related_papers
 from paper_search.reader_models import ReaderModelRegistry, build_chat_request_kwargs
@@ -31,6 +36,71 @@ def _paper_line(paper: dict[str, Any]) -> str:
     return " ".join(bits)
 
 
+def _clean_html_text(value: str) -> str:
+    text = re.sub(r"<script\b.*?</script>", " ", value, flags=re.I | re.S)
+    text = re.sub(r"<style\b.*?</style>", " ", text, flags=re.I | re.S)
+    text = re.sub(r"<[^>]+>", " ", text)
+    text = unescape(text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def web_search_snippets(query: str, limit: int = 5) -> list[str]:
+    """Return lightweight web snippets for explicit reader chat web-search mode."""
+
+    query = query.strip()
+    if not query:
+        return []
+    url = f"https://duckduckgo.com/html/?q={quote_plus(query)}"
+    request = Request(url, headers={"User-Agent": "Mozilla/5.0 PaperSearchReader/1.0"})
+    try:
+        with urlopen(request, timeout=8) as response:  # noqa: S310 - explicit user-triggered web search
+            html = response.read(700_000).decode("utf-8", errors="ignore")
+    except OSError as exc:
+        return [f"[web search unavailable] {exc}"]
+    results: list[str] = []
+    blocks = re.findall(r'<a[^>]+class="result__a"[^>]*>(.*?)</a>.*?<a[^>]+class="result__snippet"[^>]*>(.*?)</a>', html, re.I | re.S)
+    for title_html, snippet_html in blocks[:limit]:
+        title = _clean_html_text(title_html)
+        snippet = _clean_html_text(snippet_html)
+        if title or snippet:
+            results.append(f"- {title}: {snippet}" if snippet else f"- {title}")
+    if not results:
+        body = _clean_html_text(html)
+        if body:
+            results.append(body[:1500])
+    return results[:limit]
+
+
+def _attachment_text(item: dict[str, Any], max_chars: int = 80_000) -> str | None:
+    name = str(item.get("name") or "uploaded-file").strip()[:160]
+    file_type = str(item.get("type") or "application/octet-stream").strip()[:120]
+    text = str(item.get("text") or "").strip()
+    if not text and str(item.get("data_base64") or "").strip() and "pdf" in file_type.lower():
+        try:
+            import fitz
+
+            pdf_bytes = b64decode(str(item.get("data_base64") or ""), validate=False)
+            with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
+                text = "\n".join(f"[Uploaded PDF page {idx + 1}]\n{page.get_text('text').strip()}" for idx, page in enumerate(doc))
+        except Exception as exc:  # pragma: no cover - provider/user file dependent
+            text = f"[Could not extract uploaded PDF text: {exc}]"
+    if not text:
+        return None
+    clipped = text[:max_chars]
+    suffix = "\n[file clipped]" if len(text) > max_chars else ""
+    return f"[File: {name} | {file_type}]\n{clipped}{suffix}"
+
+
+def _attachments_context(attachments: list[dict[str, Any]] | None) -> str:
+    if not attachments:
+        return ""
+    parts = [_attachment_text(item) for item in attachments[:6] if isinstance(item, dict)]
+    parts = [part for part in parts if part]
+    if not parts:
+        return ""
+    return "[Uploaded session files]\n" + "\n\n".join(parts)
+
+
 def build_chat_messages(
     site_dir: Path | str,
     question: str,
@@ -40,6 +110,8 @@ def build_chat_messages(
     max_fulltext_chars: int = 200000,
     reading_note: str | None = None,
     selected_visual: dict[str, Any] | None = None,
+    attachments: list[dict[str, Any]] | None = None,
+    web_context: list[str] | None = None,
 ) -> list[dict[str, str]]:
     """Build OpenAI-compatible chat messages for paper or library QA."""
 
@@ -77,6 +149,11 @@ def build_chat_messages(
                 if rows:
                     visual_text += "\nTable preview: " + " / ".join(rows)
             extra_parts.append(f"[Selected visual]\n{visual_text}")
+        attachment_context = _attachments_context(attachments)
+        if attachment_context:
+            extra_parts.append(attachment_context)
+        if web_context:
+            extra_parts.append("[Web search context]\n" + "\n".join(web_context[:8]))
         extra_context = "\n\n" + "\n\n".join(extra_parts) if extra_parts else ""
         user_content = (
             "Use the following grounded paper context to answer the user's question.\n\n"
@@ -89,9 +166,16 @@ def build_chat_messages(
             library_context = "\n".join(_paper_line(paper) for paper in matches)
         else:
             library_context = "No related papers were found in the current generated reader index."
+        extra_parts = []
+        attachment_context = _attachments_context(attachments)
+        if attachment_context:
+            extra_parts.append(attachment_context)
+        if web_context:
+            extra_parts.append("[Web search context]\n" + "\n".join(web_context[:8]))
+        extra_context = "\n\n" + "\n\n".join(extra_parts) if extra_parts else ""
         user_content = (
             "Use the related papers from the user's local library to answer.\n\n"
-            f"[Related library papers]\n{library_context}\n\n"
+            f"[Related library papers]\n{library_context}{extra_context}\n\n"
             f"[User question]\n{question}"
         )
 
@@ -158,6 +242,10 @@ def generate_chat_response(
     reading_note = str(payload.get("reading_note") or "").strip() or None
     selected_visual_raw = payload.get("selected_visual")
     selected_visual = selected_visual_raw if isinstance(selected_visual_raw, dict) else None
+    attachments_raw = payload.get("attachments")
+    attachments = attachments_raw if isinstance(attachments_raw, list) else None
+    web_search = bool(payload.get("web_search"))
+    web_context = web_search_snippets(question, limit=5) if web_search else None
 
     messages = build_chat_messages(
         site_dir,
@@ -168,6 +256,8 @@ def generate_chat_response(
         max_fulltext_chars=max_fulltext_chars,
         reading_note=reading_note,
         selected_visual=selected_visual,
+        attachments=attachments,
+        web_context=web_context,
     )
     kwargs = build_chat_request_kwargs(
         registry,
@@ -188,4 +278,6 @@ def generate_chat_response(
         "model": selected_model,
         "paper_key": paper_key,
         "mode": mode,
+        "web_search": web_search,
+        "attachments": len(attachments or []),
     }

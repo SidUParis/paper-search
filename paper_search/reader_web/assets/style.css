@@ -91,3 +91,35 @@
 .paper-studio .note-panel-actions{display:grid!important;grid-template-columns:1fr 1fr;gap:8px;width:100%}
 .paper-studio .note-panel-actions .tiny{background:#fff!important;border:1px solid var(--line)!important;color:var(--text)!important;width:100%;min-width:0;white-space:nowrap;font-size:11px!important;padding:8px 9px!important}
 .paper-studio .note-panel-actions .tiny:hover{background:#f2f4ff!important;border-color:#c8d0ff!important;color:var(--blue)!important}
+
+/* Chat composer v2: temporary upload, web search toggle, folded model presets */
+.paper-studio .paper-composer{
+  display:grid!important;
+  grid-template-columns:auto minmax(0,1fr) minmax(128px,172px) 34px!important;
+  grid-template-rows:auto auto;
+  gap:8px!important;
+  align-items:center!important;
+  padding:8px!important;
+  min-height:64px!important;
+}
+.paper-studio .composer-tools{display:flex;align-items:center;gap:7px;padding-right:8px;border-right:1px solid var(--line)}
+.paper-studio .composer-icon{width:34px;height:34px;border:0;background:transparent;color:#60626b;border-radius:12px;display:grid;place-items:center;cursor:pointer;font-size:20px;line-height:1;transition:background .15s ease,color .15s ease,transform .15s ease}
+.paper-studio .composer-icon:hover,.paper-studio .composer-icon.active{background:#f2f4ff;color:var(--blue);transform:translateY(-1px)}
+.paper-studio .composer-icon input{display:none}
+.paper-studio .paper-composer textarea{min-height:38px!important;border:0!important;background:transparent!important;outline:0!important;resize:none;width:100%}
+.paper-studio .composer-model{height:38px;border:0;background:#fff;color:#111;border-left:1px solid var(--line);padding:0 30px 0 12px;font-weight:750;font-size:14px;outline:0;min-width:0}
+.paper-studio .paper-composer .mini-send{align-self:center!important}
+.paper-studio .upload-chip-row{grid-column:1/5;display:flex;flex-wrap:wrap;gap:6px;min-height:0}
+.paper-studio .upload-chip{border:1px solid var(--line);background:#f6f3f4;border-radius:999px;padding:5px 8px;display:inline-flex;gap:5px;align-items:center;color:#3a3b40;font-size:11px;font-weight:750;cursor:pointer;max-width:100%;white-space:nowrap}
+.paper-studio .upload-chip em{font-style:normal;color:#777}
+.paper-studio .upload-chip:hover{border-color:#c8d0ff;background:#f2f4ff;color:var(--blue)}
+@media(max-width:1180px){.paper-studio .paper-composer{grid-template-columns:auto minmax(0,1fr) 34px!important}.paper-studio .composer-model{grid-column:1/4;width:100%;border-left:0;border-top:1px solid var(--line);padding-top:4px}.paper-studio .upload-chip-row{grid-column:1/4}}
+
+
+
+/* Chat composer v3: give the prompt input enough room inside the narrow right rail */
+.paper-studio{grid-template-columns:248px minmax(520px,1fr) 380px}
+.paper-studio .paper-composer{grid-template-columns:auto minmax(92px,1fr) minmax(94px,124px) 34px!important}
+.paper-studio .composer-tools{gap:4px;padding-right:6px}
+.paper-studio .composer-icon{width:30px;height:34px;font-size:19px}
+.paper-studio .composer-model{font-size:13px;padding-left:8px;padding-right:18px;text-overflow:ellipsis}
