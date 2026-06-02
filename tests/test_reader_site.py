@@ -142,12 +142,17 @@ def test_render_site_adds_global_ai_terminal(tmp_path: Path):
     assert "fetch('/api/notes/save'" in app_js
     assert "pdf-zoom-in" in ai
     assert "pdf-zoom-out" in ai
-    assert "pdf-annotate-toggle" in ai
-    assert "pdf-annotation-layer" in ai
+    assert "pdf-annotate-toggle" not in ai
+    assert "pdf-annotation-layer" not in ai
+    assert "AI Assisted Reading" in ai
+    assert "Contextual Chat" not in ai
     assert "zoomPdf" in app_js
-    assert "togglePdfAnnotation" in app_js
-    assert "savePdfAnnotation" in app_js
-    assert "localStorage.setItem(pdfAnnotationKey" in app_js
+    assert "togglePdfAnnotation" not in app_js
+    assert "savePdfAnnotation" not in app_js
+    assert "localStorage.setItem(pdfAnnotationKey" not in app_js
+    assert "addThinkingBubble" in app_js
+    assert "removeThinkingBubble" in app_js
+    assert "model-thinking" in app_js
 
 
 def test_render_site_preserves_cached_private_notebooklm_audio(tmp_path: Path, monkeypatch):
