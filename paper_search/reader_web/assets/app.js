@@ -1,4 +1,4 @@
-const state = { papers: [], paper: null, catalog: {topics: [], sources: []}, featured: null, lastNoteDraft: null, selectedVisual: null, uploadedFiles: [], webSearch: false, viewerIndex: 0, viewerZoom: 1 };
+const state = { papers: [], paper: null, catalog: {topics: [], sources: []}, featured: null, modelConfig: null, lastNoteDraft: null, selectedVisual: null, uploadedFiles: [], webSearch: false, viewerIndex: 0, viewerZoom: 1 };
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 const page = document.body.dataset.page || 'discovery';
@@ -63,6 +63,25 @@ function detectNotionIntent(text){ const t=String(text||'').toLowerCase(); if(!/
 function noteConfirmHtml(intent){ return `<div class="note-confirm" data-note-confirm><strong>准备写入 Notion</strong><span>${esc(intent.destination)} · ${esc(intent.mode==='property'?'Update field':'Append note')}</span><p>我会使用上一条 AI 回答作为内容。确认后才会写入 Notion。</p><div><button class="confirm-note-save" data-confirm-note-save>Confirm save</button><button class="cancel-note-save" data-cancel-note-save>Cancel</button></div></div>`; }
 async function saveCurrentNote(intent){ if(!state.lastNoteDraft||!state.paper){ addBubble('assistant','还没有可保存的 AI 回答。先问我一个关于当前论文的问题，再说“保存到 Notion”。'); return; } const payload={...state.lastNoteDraft,paper_key:state.paper.paper_id,destination:intent.destination||'AI Note',mode:intent.mode||'append'}; addBubble('assistant',`Saving to Notion… ${payload.destination}`); try{ const res=await fetch('/api/notes/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); const data=await res.json(); if(!res.ok) throw new Error(data.message||data.error||'save failed'); addBubble('assistant',`Saved to Notion ✓ ${data.destination||payload.destination} · ${data.mode||payload.mode}`); }catch(err){ addBubble('error',`Save failed: ${err.message||err}`); } }
 function showNoteConfirmation(intent){ const log=$('#chat-log'); if(!log)return; log.insertAdjacentHTML('beforeend',`<div class="bubble assistant">${noteConfirmHtml(intent)}</div>`); const bubble=log.lastElementChild; log.scrollTop=log.scrollHeight; bubble?.querySelector('[data-confirm-note-save]')?.addEventListener('click',()=>saveCurrentNote(intent)); bubble?.querySelector('[data-cancel-note-save]')?.addEventListener('click',e=>{ e.currentTarget.closest('.bubble')?.remove(); }); }
+async function loadModelPresets(){
+  const preset=$('#chat-model-preset');
+  if(!preset) return;
+  try{
+    const res=await fetch('/api/models',{cache:'no-store'});
+    if(!res.ok) throw new Error('models api unavailable');
+    const cfg=await res.json();
+    const presets=(cfg.presets||[]).filter(p=>p.enabled!==false);
+    if(presets.length){
+      preset.innerHTML=presets.map(p=>`<option value="${esc(p.value)}" ${p.has_key?'':'disabled'}>${esc(p.label||`${p.provider_label} · ${p.model}`)}${p.has_key?'':' · key missing'}</option>`).join('');
+      const defaultValue=cfg.defaults?.chat_value || presets.find(p=>p.has_key)?.value || presets[0].value;
+      if([...preset.options].some(o=>o.value===defaultValue && !o.disabled)) preset.value=defaultValue;
+      else if(presets.find(p=>p.has_key)) preset.value=presets.find(p=>p.has_key).value;
+      state.modelConfig=cfg;
+    }
+  }catch(err){
+    console.warn('Using built-in model preset fallback:', err);
+  }
+}
 function syncModelPreset(){ const preset=$('#chat-model-preset'); if(!preset)return; const [provider,model]=String(preset.value||'deepseek|deepseek-v4-flash').split('|'); if($('#chat-provider')) $('#chat-provider').value=provider||'deepseek'; if($('#chat-model')) $('#chat-model').value=model||'deepseek-v4-flash'; }
 function fileToChatAttachment(file){ return new Promise((resolve,reject)=>{ const isPdf=/pdf/i.test(file.type||file.name); const reader=new FileReader(); reader.onerror=()=>reject(reader.error||new Error('file read failed')); reader.onload=()=>{ const result=String(reader.result||''); if(isPdf){ resolve({name:file.name,type:file.type||'application/pdf',size:file.size,data_base64:result.split(',').pop()||''}); } else { resolve({name:file.name,type:file.type||'text/plain',size:file.size,text:result.slice(0,120000)}); } }; if(isPdf) reader.readAsDataURL(file); else reader.readAsText(file); }); }
 function renderUploadChips(){ const box=$('#upload-chip-row'); if(!box)return; box.innerHTML=state.uploadedFiles.map((f,i)=>`<button type="button" class="upload-chip" data-remove-upload="${i}" title="Temporary file: cleared when this tab/session ends"><span>📎</span>${esc(f.name)}<em>×</em></button>`).join(''); $$('[data-remove-upload]').forEach(btn=>btn.addEventListener('click',()=>{ state.uploadedFiles.splice(Number(btn.dataset.removeUpload),1); renderUploadChips(); })); }
@@ -154,5 +173,5 @@ function setupAdmin(){
 function renderRankResults(results){ const box=$('[data-rank-results]'); if(!box) return; if(!results.length){ box.innerHTML='<div class="rank-empty">AI 没有找到可排序结果；可以换一个更具体的问题。</div>'; return; } box.innerHTML=results.map((r,i)=>{ const p=r.paper||{}; const pct=Math.round((Number(r.score)||0)*100); return `<a class="rank-card" href="${aiHref(p)}"><span class="rank-num">${String(i+1).padStart(2,'0')}</span><div><strong>${esc(p.title||r.paper_id)}</strong><p>${esc(r.reason||'')}</p><small>${pct}% · ${esc(r.suggested_action||'skim')} · ${esc(metaLine(p))}</small></div></a>`; }).join(''); }
 function setupRanking(){ const form=$('[data-rank-form]'); if(!form) return; const input=$('[data-rank-query]'), status=$('[data-rank-status]'); form.addEventListener('submit',async e=>{ e.preventDefault(); const query=(input?.value||'').trim(); if(!query) return; if(status) status.textContent='LLM 正在 refine / rerank 当前 library…'; try{ const res=await fetch('/api/rank',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query,provider_id:$('#chat-provider')?.value||'deepseek',model:$('#chat-model')?.value||'deepseek-v4-flash',limit:8,candidate_limit:40})}); const data=await res.json(); if(!res.ok) throw new Error(data.message||data.error||'ranking failed'); renderRankResults(data.results||[]); if(page==='library' && data.results?.length){ const ids=new Set(data.results.map(r=>r.paper_id)); const ranked=data.results.map(r=>r.paper).filter(Boolean); const rest=state.papers.filter(p=>!ids.has(p.paper_id)); state.papers=[...ranked,...rest]; renderLibrary(); } if(status) status.textContent=`Found ${data.results?.length||0} papers · ${esc(data.model||'model')}`; }catch(err){ if(status) status.textContent=`Error: ${err.message||err}`; } }); window.addEventListener('keydown',e=>{ if((e.metaKey||e.ctrlKey) && e.key.toLowerCase()==='k'){ e.preventDefault(); input?.focus(); } }); }
 
-async function init(){ renderNav(); await loadPapers(); setupChat(); setupRanking(); if(page==='discovery'){renderMetrics();renderDiscovery();} if(page==='library'){fillFilters('');renderLibrary();['search','topic-filter','source-filter','tag-filter'].forEach(id=>document.getElementById(id)?.addEventListener('input',renderLibrary));} if(page==='ai') setupAi(); if(page==='paper') renderPaperPage(); setupAdmin(); }
+async function init(){ renderNav(); await loadPapers(); await loadModelPresets(); setupChat(); setupRanking(); if(page==='discovery'){renderMetrics();renderDiscovery();} if(page==='library'){fillFilters('');renderLibrary();['search','topic-filter','source-filter','tag-filter'].forEach(id=>document.getElementById(id)?.addEventListener('input',renderLibrary));} if(page==='ai') setupAi(); if(page==='paper') renderPaperPage(); setupAdmin(); }
 init().catch(err=>{ console.error(err); document.body.insertAdjacentHTML('afterbegin',`<pre class="fatal">${esc(err.message||err)}</pre>`); });

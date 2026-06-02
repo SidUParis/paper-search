@@ -12,6 +12,7 @@ import os
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
+import re
 
 try:
     from dotenv import load_dotenv
@@ -71,8 +72,52 @@ class ModelProvider:
         }
 
 
+def _slug_provider_id(value: str) -> str:
+    slug = re.sub(r"[^a-z0-9_-]+", "-", value.strip().lower()).strip("-")
+    return slug or "preset"
+
+
+def _chat_preset_providers_from_env() -> list[ModelProvider]:
+    """Mirror chat.xfairllm.com model presets from CHAT_PRESET_* env vars.
+
+    The env format is intentionally compatible with the standalone chat app:
+    CHAT_PRESET_<NAME>_LABEL / _BASE / _MODEL / _KEY.  Keys remain server-side;
+    the browser only receives provider metadata plus has_key.
+    """
+
+    groups: dict[str, dict[str, str]] = {}
+    pattern = re.compile(r"^CHAT_PRESET_(?P<name>.+)_(?P<field>LABEL|BASE|MODEL|KEY)$")
+    for key, value in os.environ.items():
+        match = pattern.match(key)
+        if not match or not str(value).strip():
+            continue
+        groups.setdefault(match.group("name"), {})[match.group("field").lower()] = str(value).strip()
+
+    providers: list[ModelProvider] = []
+    for name, data in sorted(groups.items()):
+        base_url = data.get("base", "").strip()
+        model = data.get("model", "").strip()
+        if not base_url or not model:
+            continue
+        provider = ModelProvider(
+            id=f"chat-{_slug_provider_id(name)}",
+            label=data.get("label") or name.replace("_", " ").title(),
+            base_url=base_url,
+            api_key_env=f"CHAT_PRESET_{name}_KEY",
+            models=[model],
+            default_model=model,
+            enabled=True,
+        )
+        try:
+            provider.validate()
+        except ValueError:
+            continue
+        providers.append(provider)
+    return providers
+
+
 def default_providers() -> list[ModelProvider]:
-    return [
+    providers = [
         ModelProvider(
             id="deepseek",
             label="DeepSeek",
@@ -109,6 +154,8 @@ def default_providers() -> list[ModelProvider]:
             enabled=False,
         ),
     ]
+    providers.extend(_chat_preset_providers_from_env())
+    return providers
 
 
 def _load_runtime_env() -> None:
@@ -125,6 +172,7 @@ def _load_runtime_env() -> None:
     candidates = [
         here.parents[1] / ".env",
         Path("/home/orange/paper-search/.env"),
+        Path("/home/orange/xfairllm-chat/.env"),
     ]
     for path in candidates:
         if path.exists():
@@ -202,12 +250,40 @@ class ReaderModelRegistry:
         return bool(self.resolve_api_key(provider))
 
     def public_config(self) -> dict[str, Any]:
-        providers = [provider.to_public(has_key=self.has_key(provider)) for provider in self.list_providers()]
+        provider_objects = self.list_providers()
+        providers = [provider.to_public(has_key=self.has_key(provider)) for provider in provider_objects]
+        chat_model = os.environ.get("CHAT_MODEL", "").strip()
+        chat_default = "deepseek/deepseek-v4-flash"
+        chat_default_value = "deepseek|deepseek-v4-flash"
+        presets = []
+        for provider in provider_objects:
+            for model in provider.models:
+                has_key = self.has_key(provider)
+                option = {
+                    "provider_id": provider.id,
+                    "provider_label": provider.label,
+                    "model": model,
+                    "label": provider.label if len(provider.models) == 1 else f"{provider.label} · {model}",
+                    "value": f"{provider.id}|{model}",
+                    "enabled": provider.enabled,
+                    "has_key": has_key,
+                }
+                presets.append(option)
+                if chat_model and model == chat_model:
+                    chat_default = f"{provider.id}/{model}"
+                    chat_default_value = option["value"]
+        # Prefer the chat.xfairllm.com preset list in the UI when it exists;
+        # otherwise fall back to enabled built-in providers.
+        ui_presets = [p for p in presets if p["provider_id"].startswith("chat-") and p["enabled"]]
+        if not ui_presets:
+            ui_presets = [p for p in presets if p["enabled"]]
         return {
             "providers": providers,
+            "presets": ui_presets,
             "defaults": {
-                "chat": "deepseek/deepseek-v4-flash",
-                "paper_qa": "deepseek/deepseek-v4-flash",
+                "chat": chat_default,
+                "chat_value": chat_default_value,
+                "paper_qa": chat_default,
                 "refine": "deepseek/deepseek-v4-pro",
                 "ranking": "openrouter/qwen/qwen3.6-plus",
             },

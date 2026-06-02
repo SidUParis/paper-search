@@ -115,6 +115,7 @@ def test_render_site_adds_global_ai_terminal(tmp_path: Path):
     assert "chat-file-input" in ai
     assert "web-search-toggle" in ai
     assert "chat-model-preset" in ai
+    assert "DeepSeek v4 flash" in ai  # static fallback until /api/models loads chat.xfairllm.com presets
     assert "composer-control-row" in ai
     assert "web-search-icon" in ai
     assert "aria-label=\"Attach temporary session file\"" in ai
@@ -122,6 +123,10 @@ def test_render_site_adds_global_ai_terminal(tmp_path: Path):
     assert "fetch('/api/chat'" in app_js
     assert "state.paper?'full_pdf':'library'" in app_js
     assert "max_fulltext_chars:200000" in app_js
+    assert "loadModelPresets" in app_js
+    assert "fetch('/api/models'" in app_js
+    assert "cfg.presets" in app_js
+    assert "chat_value" in app_js
     assert "attachments:state.uploadedFiles" in app_js
     assert "web_search:state.webSearch" in app_js
     assert "detectNotionIntent" in app_js

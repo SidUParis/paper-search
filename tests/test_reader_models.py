@@ -23,6 +23,27 @@ def test_default_registry_exposes_presets_without_secret_values(tmp_path: Path, 
     assert "api_key" not in text.lower()
 
 
+def test_registry_imports_chat_xfairllm_env_presets(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("CHAT_MODEL", "vertex_ai/claude-sonnet-4-6")
+    monkeypatch.setenv("CHAT_PRESET_CLAUDE_SONNET_4_6_LABEL", "Claude Sonnet 4.6")
+    monkeypatch.setenv("CHAT_PRESET_CLAUDE_SONNET_4_6_BASE", "https://management.llmproxy.ai.orange")
+    monkeypatch.setenv("CHAT_PRESET_CLAUDE_SONNET_4_6_MODEL", "vertex_ai/claude-sonnet-4-6")
+    monkeypatch.setenv("CHAT_PRESET_CLAUDE_SONNET_4_6_KEY", "preset-secret")
+
+    public = ReaderModelRegistry(tmp_path).public_config()
+    text = json.dumps(public)
+
+    sonnet = next(provider for provider in public["providers"] if provider["id"] == "chat-claude_sonnet_4_6")
+    assert sonnet["label"] == "Claude Sonnet 4.6"
+    assert sonnet["base_url"] == "https://management.llmproxy.ai.orange"
+    assert sonnet["models"] == ["vertex_ai/claude-sonnet-4-6"]
+    assert sonnet["has_key"] is True
+    assert public["defaults"]["chat_value"] == "chat-claude_sonnet_4_6|vertex_ai/claude-sonnet-4-6"
+    assert any(p["value"] == public["defaults"]["chat_value"] for p in public["presets"])
+    assert "preset-secret" not in text
+    assert "api_key" not in text.lower()
+
+
 def test_custom_provider_roundtrip_redacts_local_key(tmp_path: Path):
     registry = ReaderModelRegistry(tmp_path)
     provider = ModelProvider(
