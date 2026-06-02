@@ -158,11 +158,14 @@ def test_render_site_adds_global_ai_terminal(tmp_path: Path):
     assert "Research Projects" in ai
     assert "Research Topics" in ai
     assert "Venues" in ai
-    assert "taxonomy-submenu" in ai
+    assert "taxonomy-submenu" not in ai
+    assert "reading-queue" not in ai
+    assert "READING QUEUE" not in ai
     assert "paperProjects" in app_js
     assert "taxonomyMode" in app_js
     assert "selectTaxonomy" in app_js
-    assert "renderTaxonomySubmenu" in app_js
+    assert "inlineTaxonomySubmenu" in app_js
+    assert "renderTaxonomySubmenu" not in app_js
     assert "Areas" not in ai
 
 
