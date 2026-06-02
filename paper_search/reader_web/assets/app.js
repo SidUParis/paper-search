@@ -1,4 +1,4 @@
-const state = { papers: [], paper: null, catalog: {topics: [], sources: []}, featured: null, modelConfig: null, lastNoteDraft: null, selectedVisual: null, uploadedFiles: [], webSearch: false, viewerIndex: 0, viewerZoom: 1, pdfPage: 1, pdfPages: 0 };
+const state = { papers: [], paper: null, catalog: {topics: [], sources: []}, featured: null, modelConfig: null, lastNoteDraft: null, selectedVisual: null, uploadedFiles: [], webSearch: false, viewerIndex: 0, viewerZoom: 1, pdfPage: 1, pdfPages: 0, pdfZoom: 1, pdfAnnotating: false };
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 const page = document.body.dataset.page || 'discovery';
@@ -52,11 +52,13 @@ function pdfUrl(p){ if(p.local_document||p.source_url) return `/paper-assets/pdf
 async function loadPdfPreview(p){
   const stage=$('#pdf-page-stage'), label=$('#pdf-page-label'), full=$('#open-pdf-full');
   if(!stage) return;
-  state.pdfPage=1; state.pdfPages=0;
+  state.pdfPage=1; state.pdfPages=0; state.pdfZoom=1; state.pdfAnnotating=false;
+  $('#pdf-annotate-toggle')?.setAttribute('aria-pressed','false');
   const pdf=pdfUrl(p);
   if(full) full.href=pdf||'#';
-  if(!pdf){ stage.innerHTML='<div class="empty-mini">No PDF found for this paper.</div>'; if(label) label.textContent='Page — / —'; return; }
-  stage.innerHTML='<div class="empty-mini">Rendering PDF page…</div>';
+  if(!pdf){ stage.innerHTML='<div id="pdf-annotation-layer" class="pdf-annotation-layer"></div><div class="empty-mini">No PDF found for this paper.</div>'; if(label) label.textContent='Page — / —'; updatePdfZoomLabel(); return; }
+  stage.innerHTML='<div id="pdf-annotation-layer" class="pdf-annotation-layer"></div><div class="empty-mini">Rendering PDF page…</div>';
+  updatePdfZoomLabel();
   try{
     const res=await fetch(`/api/papers/${encodeURIComponent(p.paper_id)}/pdf-info`,{cache:'no-store'});
     const info=await res.json();
@@ -64,9 +66,17 @@ async function loadPdfPreview(p){
     state.pdfPages=Number(info.pages||1)||1;
     renderPdfPage();
   }catch(err){
-    stage.innerHTML=`<div class="empty-mini">PDF preview failed: ${esc(err.message||err)}<br><a class="tiny" href="${esc(pdf)}" target="_blank" rel="noopener">Open full PDF</a></div>`;
+    stage.innerHTML=`<div id="pdf-annotation-layer" class="pdf-annotation-layer"></div><div class="empty-mini">PDF preview failed: ${esc(err.message||err)}<br><a class="tiny" href="${esc(pdf)}" target="_blank" rel="noopener">Open full PDF</a></div>`;
     if(label) label.textContent='Page — / —';
   }
+}
+function updatePdfZoomLabel(){ const z=$('#pdf-zoom-label'); if(z) z.textContent=`${Math.round((state.pdfZoom||1)*100)}%`; }
+function pdfAnnotationKey(){ return `xfair-reader-annotations:${state.paper?.paper_id||'none'}:${state.pdfPage||1}`; }
+function loadPdfAnnotations(){ try{ return JSON.parse(localStorage.getItem(pdfAnnotationKey())||'[]').filter(Boolean); }catch(_err){ return []; } }
+function savePdfAnnotation(note){ const notes=loadPdfAnnotations(); notes.push(note); localStorage.setItem(pdfAnnotationKey(), JSON.stringify(notes)); renderPdfAnnotations(); }
+function renderPdfAnnotations(){
+  const layer=$('#pdf-annotation-layer'); if(!layer) return;
+  layer.innerHTML=loadPdfAnnotations().map((n,i)=>`<button class="pdf-annotation-pin" style="left:${Number(n.x||0)}%;top:${Number(n.y||0)}%" title="${esc(n.text||'Annotation')}" data-ann-index="${i}"><span>✎</span><em>${esc(n.text||'Annotation')}</em></button>`).join('');
 }
 function renderPdfPage(){
   const stage=$('#pdf-page-stage'), label=$('#pdf-page-label'), prev=$('#pdf-prev-page'), next=$('#pdf-next-page');
@@ -76,11 +86,23 @@ function renderPdfPage(){
   if(label) label.textContent=`Page ${state.pdfPage} / ${total}`;
   if(prev) prev.disabled=state.pdfPage<=1;
   if(next) next.disabled=state.pdfPage>=total;
+  updatePdfZoomLabel();
   const src=`/paper-assets/pdf-page/${encodeURIComponent(state.paper.paper_id)}/${state.pdfPage}.png`;
-  stage.innerHTML=`<img class="pdf-page-image" src="${src}" alt="Rendered PDF page ${state.pdfPage}" loading="eager" />`;
+  stage.innerHTML=`<div id="pdf-annotation-layer" class="pdf-annotation-layer"></div><img class="pdf-page-image" src="${src}" alt="Rendered PDF page ${state.pdfPage}" loading="eager" style="width:${Math.round((state.pdfZoom||1)*100)}%;max-width:none" />`;
+  renderPdfAnnotations();
 }
 function changePdfPage(delta){ if(!state.paper) return; state.pdfPage=(state.pdfPage||1)+delta; renderPdfPage(); }
-
+function zoomPdf(delta){ state.pdfZoom=Math.max(.5, Math.min(2.5, Math.round(((state.pdfZoom||1)+delta)*10)/10)); const img=$('.pdf-page-image'); if(img){ img.style.width=`${Math.round(state.pdfZoom*100)}%`; img.style.maxWidth='none'; } updatePdfZoomLabel(); renderPdfAnnotations(); }
+function togglePdfAnnotation(){ state.pdfAnnotating=!state.pdfAnnotating; const btn=$('#pdf-annotate-toggle'), stage=$('#pdf-page-stage'); if(btn) btn.setAttribute('aria-pressed', String(state.pdfAnnotating)); if(stage) stage.classList.toggle('annotating', state.pdfAnnotating); }
+function handlePdfAnnotationClick(ev){
+  if(!state.pdfAnnotating || !state.paper) return;
+  const img=$('.pdf-page-image'); if(!img || ev.target.closest('.pdf-annotation-pin')) return;
+  const r=img.getBoundingClientRect();
+  if(ev.clientX<r.left||ev.clientX>r.right||ev.clientY<r.top||ev.clientY>r.bottom) return;
+  const text=prompt('Add margin note / annotation for this PDF position:');
+  if(!text) return;
+  savePdfAnnotation({x:((ev.clientX-r.left)/r.width*100).toFixed(2), y:((ev.clientY-r.top)/r.height*100).toFixed(2), text:text.trim(), ts:Date.now()});
+}
 function audioUrl(p){ const raw=String(p?.notebooklm_audio||'').trim(); if(!raw) return ''; if(/^https?:\/\//i.test(raw) || /^data:audio\//i.test(raw) || raw.startsWith('assets/')) return raw; return `/paper-assets/audio/${encodeURIComponent(p.paper_id)}`; }
 function noteHtml(p){ const sections=[['中文速览',p.zh_brief||p.tldr||p.summary],['TL;DR',p.tldr],['Motivation / 研究动机',p.motivation],['Method / 方法',p.method],['Results / 结果',p.results],['Limitations / 局限',p.limitations],['PhD Relevance',p.relevance],['Abstract',p.abstract]]; return sections.filter(([,v])=>v).map(([k,v])=>`<section class="content-section"><h2>${esc(k)}</h2><p>${esc(v)}</p></section>`).join('') || '<section class="content-section"><p>Notion / Obsidian note fields are not filled yet.</p></section>'; }
 function renderAudioPanel(p){ const box=$('#audio-player-card'); if(!box)return; const src=audioUrl(p); if(!src){ box.innerHTML='<div class="empty-mini">这篇论文还没有同步 NotebookLM audio。可以直接从当前 PDF 生成一个中文 Deep Dive 音频；生成会在后台运行，完成后刷新页面即可播放。</div><div class="audio-actions"><button class="tiny" data-generate-audio>Generate NotebookLM deep dive</button></div>'; box.querySelector('[data-generate-audio]')?.addEventListener('click',startNotebookAudioJob); return; } box.innerHTML=`<div class="audio-cover"><span>NotebookLM</span><strong>Audio Deep Dive</strong></div><div class="audio-copy"><p class="eyebrow">Paper audio</p><h3>${esc(p.title||'Audio deep dive')}</h3><p>播放 NotebookLM 创建的论文讲解音频；适合边读 PDF 边听。</p><audio controls preload="metadata" src="${esc(src)}"></audio><div class="audio-actions"><button class="tiny" data-audio-chat>Ask about this audio</button><button class="tiny ghost" data-generate-audio>Regenerate audio</button>${/^https?:\/\//i.test(src)?`<a class="tiny ghost" href="${esc(src)}" target="_blank" rel="noopener">Open audio source</a>`:''}</div></div>`; box.querySelector('[data-audio-chat]')?.addEventListener('click',()=>{ const q=$('#chat-question'); if(!q)return; q.value='请结合这篇论文的 NotebookLM audio deep dive，用中文总结音频里最值得注意的研究点，并指出和我的 PhD 方向的关系。'; q.focus(); }); box.querySelector('[data-generate-audio]')?.addEventListener('click',startNotebookAudioJob); }
@@ -89,7 +111,7 @@ function renderAiList(){ const list=$('#ai-paper-list'); if(!list)return; const 
 function setReadingView(view){ const pdf=$('#pdf-frame'), canvas=$('.reading-canvas'), note=$('#synced-note'), visuals=$('#visuals-panel'), audio=$('#audio-panel'); const showPdf=view==='pdf'; const showNote=view==='note'; const showFigures=view==='figures'; const showAudio=view==='audio'; if(canvas) canvas.classList.toggle('hidden',!showPdf); if(pdf) pdf.classList.toggle('hidden',!showPdf); if(note) note.classList.toggle('hidden',!showNote); if(visuals) visuals.classList.toggle('hidden',!showFigures); if(audio) audio.classList.toggle('hidden',!showAudio); $('#show-pdf')?.classList.toggle('active',showPdf); $('#show-note')?.classList.toggle('active',showNote); $('#show-figures')?.classList.toggle('active',showFigures); $('#show-audio')?.classList.toggle('active',showAudio); }
 async function extractCurrentFigures(){ if(!state.paper){ addBubble('assistant','先选择一篇论文。'); return; } const btn=$('#extract-current-figures'); if(btn) btn.disabled=true; const box=$('#figure-gallery'); if(box) box.innerHTML='<div class="empty-mini">Extracting figures from current PDF…</div>'; try{ const res=await fetch('/api/figures/extract',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({paper_key:state.paper.paper_id})}); const data=await res.json(); if(!res.ok) throw new Error(data.message||data.error||'extract failed'); state.paper.figures=data.figures||[]; const idx=state.papers.findIndex(p=>p.paper_id===state.paper.paper_id); if(idx>=0) state.papers[idx].figures=state.paper.figures; renderFigureGallery(state.paper); addBubble('assistant',`已提取 ${state.paper.figures.length} 个图表/表格；点击 Figures 里的 “Use in chat” 就能把图表加入下一次提问上下文。`); }catch(err){ if(box) box.innerHTML=`<div class="empty-mini">Extract failed: ${esc(err.message||err)}</div>`; addBubble('error',`Figure extraction failed: ${err.message||err}`); } finally{ if(btn) btn.disabled=false; } }
 async function startNotebookAudioJob(){ if(!state.paper){ addBubble('assistant','先选择一篇论文。'); return; } const btn=$('[data-generate-audio]'); if(btn) btn.disabled=true; addBubble('assistant','已启动 NotebookLM 中文 Deep Dive 音频生成。这个任务通常需要几分钟；生成完成后刷新页面或回到 Audio tab 播放。'); try{ const res=await fetch('/api/admin/jobs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'notebooklm-audio',paper_key:state.paper.paper_id})}); const data=await res.json(); if(!res.ok) throw new Error(data.message||data.error||'audio job failed'); addBubble('assistant',`NotebookLM audio job queued: ${data.job_id}. 你可以在 Admin / Sync Dashboard 查看日志。`); }catch(err){ addBubble('error',`NotebookLM audio job failed: ${err.message||err}`); } finally{ if(btn) btn.disabled=false; } }
-function setupAi(){ fillFilters('ai-'); renderTaxonomy(); ['ai-paper-search','ai-topic-filter','ai-source-filter','ai-tag-filter'].forEach(id=>document.getElementById(id)?.addEventListener('input',()=>{ if(id!=='ai-paper-search') state.statusFilter=''; renderAiList(); })); $('#show-pdf')?.addEventListener('click',()=>setReadingView('pdf')); $('#pdf-prev-page')?.addEventListener('click',()=>changePdfPage(-1)); $('#pdf-next-page')?.addEventListener('click',()=>changePdfPage(1)); $('#show-note')?.addEventListener('click',()=>setReadingView('note')); $('#show-figures')?.addEventListener('click',()=>setReadingView('figures')); $('#show-audio')?.addEventListener('click',()=>setReadingView('audio')); $('#extract-current-figures')?.addEventListener('click',extractCurrentFigures); $('#send-note-to-chat')?.addEventListener('click',()=>{ const note=($('#reading-note-editor')?.value||'').trim(); const q=$('#chat-question'); if(!note||!q)return; q.value=`结合我的阅读笔记回答：${note}`; q.focus(); }); $('#save-reading-note')?.addEventListener('click',()=>{ const note=($('#reading-note-editor')?.value||'').trim(); if(!note){ addBubble('assistant','先在 Reading Notes 里写一点笔记，再保存到 Notion。'); return; } state.lastNoteDraft={question:'Reading note',answer:note,paper_key:state.paper?.paper_id}; showNoteConfirmation({destination:'AI Note',mode:'append'}); }); renderAiList(); }
+function setupAi(){ fillFilters('ai-'); renderTaxonomy(); ['ai-paper-search','ai-topic-filter','ai-source-filter','ai-tag-filter'].forEach(id=>document.getElementById(id)?.addEventListener('input',()=>{ if(id!=='ai-paper-search') state.statusFilter=''; renderAiList(); })); $('#show-pdf')?.addEventListener('click',()=>setReadingView('pdf')); $('#pdf-prev-page')?.addEventListener('click',()=>changePdfPage(-1)); $('#pdf-next-page')?.addEventListener('click',()=>changePdfPage(1)); $('#pdf-zoom-in')?.addEventListener('click',()=>zoomPdf(.1)); $('#pdf-zoom-out')?.addEventListener('click',()=>zoomPdf(-.1)); $('#pdf-annotate-toggle')?.addEventListener('click',togglePdfAnnotation); $('#pdf-page-stage')?.addEventListener('click',handlePdfAnnotationClick); $('#show-note')?.addEventListener('click',()=>setReadingView('note')); $('#show-figures')?.addEventListener('click',()=>setReadingView('figures')); $('#show-audio')?.addEventListener('click',()=>setReadingView('audio')); $('#extract-current-figures')?.addEventListener('click',extractCurrentFigures); $('#send-note-to-chat')?.addEventListener('click',()=>{ const note=($('#reading-note-editor')?.value||'').trim(); const q=$('#chat-question'); if(!note||!q)return; q.value=`结合我的阅读笔记回答：${note}`; q.focus(); }); $('#save-reading-note')?.addEventListener('click',()=>{ const note=($('#reading-note-editor')?.value||'').trim(); if(!note){ addBubble('assistant','先在 Reading Notes 里写一点笔记，再保存到 Notion。'); return; } state.lastNoteDraft={question:'Reading note',answer:note,paper_key:state.paper?.paper_id}; showNoteConfirmation({destination:'AI Note',mode:'append'}); }); renderAiList(); }
 function addBubble(role,text){ const log=$('#chat-log'); if(!log)return; log.insertAdjacentHTML('beforeend',`<div class="bubble ${role}">${esc(text)}</div>`); log.scrollTop=log.scrollHeight; }
 function setNoteDraft(question,answer){ state.lastNoteDraft={question,answer,paper_key:state.paper?.paper_id}; }
 function detectNotionIntent(text){ const t=String(text||'').toLowerCase(); if(!/(notion|保存|写进|写入|更新|追加|存到|save|append|update)/i.test(t)) return null; let destination='AI Note', mode='append'; if(/phd|博士|relevance|相关/.test(t)){ destination='PhD Relevance'; mode='property'; } else if(/related work|引用/.test(t)){ destination='Related Work'; mode='append'; } else if(/tldr|一句话/.test(t)){ destination='TLDR'; mode='property'; } else if(/中文|速览|brief/.test(t)){ destination='Chinese Brief'; mode='property'; } else if(/方法|method/.test(t)){ destination='Method'; mode='property'; } else if(/结果|results?/.test(t)){ destination='Results'; mode='property'; } else if(/局限|limitations?/.test(t)){ destination='Limitations'; mode='property'; } if(/追加|append|note|笔记/.test(t)) mode='append'; return {destination,mode}; }

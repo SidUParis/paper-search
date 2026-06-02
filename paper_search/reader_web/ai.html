@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="zh-CN">
-<head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>AI Reader · __SITE_TITLE__</title><link rel="stylesheet" href="assets/style.css?v=multi-3" /></head>
+<head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>AI Reader · __SITE_TITLE__</title><link rel="stylesheet" href="assets/style.css?v=multi-4" /></head>
 <body class="reader-app ai-reader-app paper-studio" data-page="ai">
   <aside class="reader-left taxonomy-sidebar">
     <a class="brand-block compact-brand brand-link" href="https://www.xfairllm.com/" aria-label="Back to xfairllm.com"><img class="brand-logo" src="assets/xfair-logo.png" alt="XFaiR LLM logo" /><div><strong>XFaiR LLM</strong><span>Back to main site</span></div></a>
@@ -58,8 +58,8 @@
       <div class="pdf-toolbar"><div><strong>PDF Preview</strong><span id="pdf-status">default view</span></div><div class="pdf-actions"><button id="show-pdf" class="tiny active">PDF</button><button id="show-figures" class="tiny">Figures</button><button id="show-note" class="tiny">Note</button><button id="show-audio" class="tiny">Audio</button><a id="open-source" class="tiny ghost" target="_blank" rel="noopener">Source</a></div></div>
       <div class="reading-canvas">
         <div id="pdf-frame" class="pdf-page-viewer" title="Paper PDF preview">
-          <div class="pdf-page-controls"><button id="pdf-prev-page" class="tiny ghost" type="button">← Prev</button><span id="pdf-page-label">Page — / —</span><button id="pdf-next-page" class="tiny ghost" type="button">Next →</button><a id="open-pdf-full" class="tiny" target="_blank" rel="noopener">Open full PDF</a></div>
-          <div id="pdf-page-stage" class="pdf-page-stage"><div class="empty-mini">Select a paper to render its PDF.</div></div>
+          <div class="pdf-page-controls"><button id="pdf-prev-page" class="tiny ghost" type="button">← Prev</button><span id="pdf-page-label">Page — / —</span><button id="pdf-next-page" class="tiny ghost" type="button">Next →</button><button id="pdf-zoom-out" class="tiny ghost" type="button">−</button><span id="pdf-zoom-label">100%</span><button id="pdf-zoom-in" class="tiny ghost" type="button">＋</button><button id="pdf-annotate-toggle" class="tiny ghost" type="button" aria-pressed="false">Annotate</button><a id="open-pdf-full" class="tiny" target="_blank" rel="noopener">Open full PDF</a></div>
+          <div id="pdf-page-stage" class="pdf-page-stage"><div id="pdf-annotation-layer" class="pdf-annotation-layer"></div><div class="empty-mini">Select a paper to render its PDF.</div></div>
         </div>
         <aside class="reading-note-panel" aria-label="Reading notes">
           <div class="note-panel-head"><strong>Reading Notes</strong><span>像 Notion 一样边读边记</span></div>
@@ -112,6 +112,6 @@
       <input id="chat-model" type="hidden" value="deepseek-v4-flash" />
     </form>
   </aside>
-  <script src="assets/app.js?v=multi-3"></script>
+  <script src="assets/app.js?v=multi-4"></script>
 </body>
 </html>

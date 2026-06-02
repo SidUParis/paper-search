@@ -147,3 +147,6 @@
 .brand-link span{font-size:11px;color:var(--muted)}
 .paper-studio .brand-link .brand-logo{width:74px}
 @media(max-width:900px){.brand-link .brand-logo{width:64px}}
+
+/* Smarter in-reader PDF controls: zoom + lightweight margin annotations */
+.pdf-page-controls{flex-wrap:wrap}.pdf-page-controls #pdf-zoom-label{flex:0 0 auto;min-width:44px}.pdf-page-stage{position:relative;align-items:flex-start}.pdf-page-stage.annotating{cursor:crosshair}.pdf-page-stage.annotating .pdf-page-image{outline:2px dashed var(--blue-soft);outline-offset:3px}.pdf-annotation-layer{position:absolute;inset:14px;pointer-events:none;z-index:3}.pdf-annotation-pin{position:absolute;transform:translate(-8px,-8px);pointer-events:auto;border:0;background:#fff4b8;color:#3d3322;border-radius:999px;box-shadow:0 8px 24px rgba(33,36,44,.18);padding:3px 6px;display:inline-flex;gap:5px;align-items:center;max-width:220px;cursor:pointer}.pdf-annotation-pin span{font-size:12px}.pdf-annotation-pin em{display:none;position:absolute;left:18px;top:18px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:8px;min-width:160px;max-width:260px;font-style:normal;font-size:12px;line-height:1.35;color:var(--text);box-shadow:0 16px 40px rgba(33,36,44,.16)}.pdf-annotation-pin:hover em{display:block}
