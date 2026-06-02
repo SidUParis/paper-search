@@ -51,6 +51,7 @@ class ReaderPaper:
     local_fulltext: str = ""
     local_document: str = ""
     tags: list[str] = field(default_factory=list)
+    projects: list[str] = field(default_factory=list)
     figures: list[dict[str, Any]] = field(default_factory=list)
     status: str = ""
     updated_at: str = ""
@@ -122,6 +123,45 @@ def _multi_select_names(prop: dict | None) -> list[str]:
     return [str(item.get("name") or "").strip() for item in values if str(item.get("name") or "").strip()]
 
 
+
+def _property_names(prop: dict | None) -> list[str]:
+    """Return display names from a tolerant Notion property value."""
+
+    if not prop:
+        return []
+    prop_type = prop.get("type")
+    if not prop_type:
+        if "multi_select" in prop:
+            prop_type = "multi_select"
+        elif "select" in prop:
+            prop_type = "select"
+        elif "rich_text" in prop:
+            prop_type = "rich_text"
+        elif "title" in prop:
+            prop_type = "title"
+    if prop_type == "multi_select":
+        return _multi_select_names(prop)
+    if prop_type == "select":
+        value = _select_name(prop).strip()
+        return [value] if value else []
+    if prop_type == "rich_text":
+        text = _text_content(prop.get("rich_text", [])).strip()
+        if not text:
+            return []
+        return [part.strip() for part in re.split(r"[,;\n]+", text) if part.strip()]
+    if prop_type == "title":
+        text = _title_content(prop).strip()
+        return [text] if text else []
+    return []
+
+
+def _first_existing_names_prop(props: dict, names: tuple[str, ...]) -> list[str]:
+    for name in names:
+        values = _property_names(props.get(name))
+        if values:
+            return values
+    return []
+
 def _first_existing_text_prop(props: dict, names: tuple[str, ...]) -> str:
     for name in names:
         value = _text_content((props.get(name, {}) or {}).get("rich_text", [])).strip()
@@ -150,6 +190,10 @@ def reader_paper_from_notion_page(
     venue = _select_name(props.get("Venue")) or _select_name(props.get("Source")) or source_label
     status = _select_name(props.get("Status"))
     tags = _multi_select_names(props.get("Topics"))
+    projects = _first_existing_names_prop(
+        props,
+        ("Projects", "Project", "Review Project", "Research Project", "Reading Project", "Collection", "Collections"),
+    )
     abstract = _text_content((props.get("Abstract", {}) or {}).get("rich_text", [])).strip()
     summary = _text_content((props.get("Summary", {}) or {}).get("rich_text", [])).strip()
     zh_brief = _first_existing_text_prop(props, ("Chinese Brief", "ZH Brief", "中文简述", "Zh Brief"))
@@ -190,6 +234,7 @@ def reader_paper_from_notion_page(
         local_fulltext=local_fulltext,
         local_document=local_document,
         tags=tags,
+        projects=projects,
         figures=[],
         status=status,
         updated_at=updated_at,
@@ -320,6 +365,7 @@ def public_safe_paper(paper: ReaderPaper) -> ReaderPaper:
         figures=[],
         authors=_sanitize_public_list(paper.authors),
         tags=_sanitize_public_list(paper.tags),
+        projects=_sanitize_public_list(paper.projects),
     )
 
 

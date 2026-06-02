@@ -24,6 +24,7 @@ def test_reader_paper_from_notion_page_maps_common_properties():
             "Status": {"select": {"name": "Reading"}},
             "Topics": {"multi_select": [{"name": "fairness"}, {"name": "BBQ"}]},
             "Venue": {"select": {"name": "ACL"}},
+            "Projects": {"multi_select": [{"name": "FrenchBBQ"}, {"name": "Social Science Readings"}]},
         },
     }
 
@@ -37,6 +38,7 @@ def test_reader_paper_from_notion_page_maps_common_properties():
     assert paper.status == "Reading"
     assert paper.tags == ["fairness", "BBQ"]
     assert paper.venue == "ACL"
+    assert paper.projects == ["FrenchBBQ", "Social Science Readings"]
 
 
 def test_render_site_writes_index_detail_assets_and_escapes_html(tmp_path: Path):
@@ -153,6 +155,15 @@ def test_render_site_adds_global_ai_terminal(tmp_path: Path):
     assert "addThinkingBubble" in app_js
     assert "removeThinkingBubble" in app_js
     assert "model-thinking" in app_js
+    assert "Research Projects" in ai
+    assert "Research Topics" in ai
+    assert "Venues" in ai
+    assert "taxonomy-submenu" in ai
+    assert "paperProjects" in app_js
+    assert "taxonomyMode" in app_js
+    assert "selectTaxonomy" in app_js
+    assert "renderTaxonomySubmenu" in app_js
+    assert "Areas" not in ai
 
 
 def test_render_site_preserves_cached_private_notebooklm_audio(tmp_path: Path, monkeypatch):
