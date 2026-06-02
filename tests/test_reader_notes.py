@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from paper_search.reader_notes import build_append_note_blocks, save_note_to_notion
+from paper_search.reader_notes import build_append_note_blocks, save_note_to_notion, update_reading_status
 
 
 class FakeBlocksChildren:
@@ -128,3 +128,33 @@ def test_save_note_to_notion_rejects_unknown_property(tmp_path: Path):
             payload={"paper_key": "notion-page-1", "answer": "x", "destination": "API Key", "mode": "property"},
             notion_client=FakeNotionClient(),
         )
+
+
+def test_update_reading_status_writes_notion_status_and_local_metadata(tmp_path: Path):
+    site = _make_site(tmp_path)
+    client = FakeNotionClient()
+
+    result = update_reading_status(
+        site_dir=site,
+        payload={"paper_key": "notion-page-1", "status": "read"},
+        notion_client=client,
+    )
+
+    assert result["ok"] is True
+    assert result["reading_status"] == "Read"
+    call = client.pages.update_calls[0]
+    assert call["page_id"] == "notion-page-1"
+    assert call["properties"] == {"Status": {"select": {"name": "Read"}}}
+    papers = json.loads((site / "data" / "papers.json").read_text(encoding="utf-8"))
+    assert papers[0]["status"] == "Read"
+    assert papers[0]["reading_status"] == "Read"
+
+
+def test_update_reading_status_rejects_unknown_status(tmp_path: Path):
+    with pytest.raises(ValueError, match="unsupported_reading_status"):
+        update_reading_status(
+            site_dir=_make_site(tmp_path),
+            payload={"paper_key": "notion-page-1", "status": "skimmed"},
+            notion_client=FakeNotionClient(),
+        )
+

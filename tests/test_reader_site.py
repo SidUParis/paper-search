@@ -36,6 +36,7 @@ def test_reader_paper_from_notion_page_maps_common_properties():
     assert paper.source_url == "https://arxiv.org/abs/2601.00001"
     assert paper.year == "2026"
     assert paper.status == "Reading"
+    assert paper.reading_status == "Reading"
     assert paper.tags == ["fairness", "BBQ"]
     assert paper.venue == "ACL"
     assert paper.projects == ["FrenchBBQ", "Social Science Readings"]
@@ -156,6 +157,12 @@ def test_render_site_adds_global_ai_terminal(tmp_path: Path):
     assert "addThinkingBubble" in app_js
     assert "removeThinkingBubble" in app_js
     assert "model-thinking" in app_js
+    assert "reading-status-filter" in (tmp_path / "library.html").read_text(encoding="utf-8")
+    assert "Mark read" in app_js
+    assert "paperReadingStatus" in app_js
+    assert "updateReadingStatus" in app_js
+    assert "selectInitialPaper" in app_js
+    assert "fetch('/api/reading-status'" in app_js
     assert "Research Projects" in ai
     assert "Research Topics" in ai
     assert "Venues" in ai

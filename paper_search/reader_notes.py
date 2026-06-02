@@ -173,3 +173,62 @@ def save_note_to_notion(
         "destination": destination,
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
+
+READING_STATUS_ALIASES: dict[str, str] = {
+    "new": "New",
+    "unread": "To Read",
+    "to read": "To Read",
+    "todo": "To Read",
+    "reading": "Reading",
+    "in progress": "Reading",
+    "read": "Read",
+    "done": "Read",
+    "finished": "Read",
+    "archived": "Archived",
+}
+
+
+def normalize_reading_status(value: str) -> str:
+    key = str(value or "").strip().lower().replace("_", "-").replace("-", " ")
+    status = READING_STATUS_ALIASES.get(key)
+    if not status:
+        raise ValueError(f"unsupported_reading_status:{value}")
+    return status
+
+
+def _write_paper_metadata(site_dir: Path, paper_id: str, updates: dict[str, Any]) -> None:
+    data_path = site_dir / "data" / "papers.json"
+    papers = _load_papers(site_dir)
+    changed = False
+    for paper in papers:
+        if str(paper.get("paper_id") or "") == paper_id:
+            paper.update(updates)
+            changed = True
+            break
+    if changed:
+        data_path.write_text(json.dumps(papers, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def update_reading_status(
+    *,
+    site_dir: Path,
+    payload: dict[str, Any],
+    notion_client: Any | None = None,
+) -> dict[str, Any]:
+    """Set the reading workflow status for a generated paper and Notion page."""
+
+    paper = _find_paper(site_dir, str(payload.get("paper_key") or ""))
+    paper_id = str(paper.get("paper_id") or "")
+    status = normalize_reading_status(str(payload.get("status") or ""))
+    client = notion_client or get_notion_client()
+    client.pages.update(page_id=paper_id, properties={"Status": {"select": {"name": status}}})
+    _write_paper_metadata(site_dir, paper_id, {"status": status, "reading_status": status})
+    return {
+        "ok": True,
+        "paper_id": paper_id,
+        "title": paper.get("title"),
+        "status": status,
+        "reading_status": status,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+

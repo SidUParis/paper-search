@@ -54,6 +54,7 @@ class ReaderPaper:
     projects: list[str] = field(default_factory=list)
     figures: list[dict[str, Any]] = field(default_factory=list)
     status: str = ""
+    reading_status: str = ""
     updated_at: str = ""
 
     @property
@@ -105,6 +106,29 @@ def _authors_content(prop: dict | None) -> list[str]:
         return []
     # Notion imports in this repo store authors as comma-separated rich text.
     return [part.strip() for part in text.split(",") if part.strip()]
+
+
+def _normalize_reading_status(value: str) -> str:
+    raw = str(value or "").strip()
+    key = raw.lower().replace("_", "-").replace("-", " ")
+    aliases = {
+        "new": "New",
+        "unread": "To Read",
+        "to read": "To Read",
+        "todo": "To Read",
+        "reading": "Reading",
+        "in progress": "Reading",
+        "read": "Read",
+        "done": "Read",
+        "finished": "Read",
+        "archived": "Archived",
+    }
+    return aliases.get(key, raw)
+
+
+def _reading_status_from_props(props: dict, fallback_status: str) -> str:
+    explicit = _select_name(props.get("Reading Status")) or _select_name(props.get("Read Status"))
+    return _normalize_reading_status(explicit or fallback_status or "New")
 
 
 def _year_from_props(props: dict) -> str:
@@ -189,6 +213,7 @@ def reader_paper_from_notion_page(
     url = str((props.get("URL", {}) or {}).get("url") or "")
     venue = _select_name(props.get("Venue")) or _select_name(props.get("Source")) or source_label
     status = _select_name(props.get("Status"))
+    reading_status = _reading_status_from_props(props, status)
     tags = _multi_select_names(props.get("Topics"))
     projects = _first_existing_names_prop(
         props,
@@ -237,6 +262,7 @@ def reader_paper_from_notion_page(
         projects=projects,
         figures=[],
         status=status,
+        reading_status=reading_status,
         updated_at=updated_at,
     )
 

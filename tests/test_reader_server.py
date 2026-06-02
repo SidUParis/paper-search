@@ -316,3 +316,27 @@ def test_figures_extract_api_updates_current_paper_without_leaking_paths(tmp_pat
     assert payload["figures"][0]["title"] == "Figure 1"
     assert str(tmp_path) not in text
     assert "secret" not in text.lower()
+
+
+def test_reading_status_api_updates_known_paper(tmp_path: Path, monkeypatch):
+    site = _make_site(tmp_path)
+    config = ReaderServerConfig(site_dir=site, profile="private", site_title="Test Reader")
+    handler = create_reader_handler(config)
+
+    def fake_update_reading_status(*, site_dir, payload, notion_client=None):
+        assert site_dir == site
+        assert payload == {"paper_key": "p1", "status": "read"}
+        return {"ok": True, "paper_id": "p1", "reading_status": "Read"}
+
+    import paper_search.reader_notes as reader_notes
+
+    monkeypatch.setattr(reader_notes, "update_reading_status", fake_update_reading_status)
+    response = handler.handle_test_request(
+        "/api/reading-status",
+        method="POST",
+        json_body={"paper_key": "p1", "status": "read"},
+    )
+
+    assert response.status == 200
+    assert json.loads(response.body.decode("utf-8"))["reading_status"] == "Read"
+

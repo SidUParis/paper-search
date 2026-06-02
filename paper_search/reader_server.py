@@ -421,6 +421,17 @@ def create_reader_handler(config: ReaderServerConfig):
                 self._send_json(result)
                 return
 
+            if path == "/api/reading-status":
+                from paper_search.reader_notes import update_reading_status
+
+                try:
+                    result = update_reading_status(site_dir=config.site_dir, payload=payload)
+                except (KeyError, ValueError, RuntimeError) as exc:
+                    self._send_json({"error": "reading_status_failed", "message": str(exc)}, status=HTTPStatus.BAD_REQUEST)
+                    return
+                self._send_json(result)
+                return
+
             if path == "/api/figures/extract":
                 from paper_search.reader_figures import extract_figures_for_site_paper
 
