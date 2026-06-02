@@ -159,6 +159,9 @@ def test_render_site_adds_global_ai_terminal(tmp_path: Path):
     assert "model-thinking" in app_js
     assert "reading-status-filter" in (tmp_path / "library.html").read_text(encoding="utf-8")
     assert "Mark read" in app_js
+    assert "Mark unread" in app_js
+    assert "readingStatusAction" in app_js
+    assert "data-next-reading-status" in app_js
     assert "paperReadingStatus" in app_js
     assert "updateReadingStatus" in app_js
     assert "setReaderStatusNotice" in app_js
