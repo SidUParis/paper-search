@@ -19,6 +19,7 @@ from urllib.parse import urlparse
 import unicodedata
 
 from paper_search.fulltext import pdf_cache_path
+from paper_search.obsidian_export import get_obsidian_vault, make_paper_id
 from paper_search.reader_figures import extract_pdf_gallery
 from paper_search.notion_sync import get_notion_client
 from paper_search.topics import load_topics
@@ -194,6 +195,27 @@ def _first_existing_text_prop(props: dict, names: tuple[str, ...]) -> str:
     return ""
 
 
+def _existing_obsidian_note_path(*, title: str, authors: list[str], year: str, explicit_path: str = "") -> str:
+    """Return the linked Obsidian paper note path when Notion omits it.
+
+    Notion is the structured metadata source, but many existing paper notes are
+    named by the Obsidian export convention rather than stored back as a Notion
+    property. Resolve that convention so reader-side metadata edits can sync the
+    note frontmatter too.
+    """
+
+    explicit = Path(explicit_path).expanduser() if explicit_path else None
+    if explicit and explicit.exists():
+        return str(explicit)
+    if not title:
+        return explicit_path
+    paper_note_id = make_paper_id(title, authors, year)
+    candidate = get_obsidian_vault() / "papers" / f"{paper_note_id}.md"
+    if candidate.exists():
+        return str(candidate)
+    return explicit_path
+
+
 def reader_paper_from_notion_page(
     page: dict,
     *,
@@ -215,6 +237,8 @@ def reader_paper_from_notion_page(
     status = _select_name(props.get("Status"))
     reading_status = _reading_status_from_props(props, status)
     tags = _multi_select_names(props.get("Topics"))
+    authors = _authors_content(props.get("Authors", {}))
+    year = _year_from_props(props)
     projects = _first_existing_names_prop(
         props,
         ("Projects", "Project", "Review Project", "Research Project", "Reading Project", "Collection", "Collections"),
@@ -229,7 +253,12 @@ def reader_paper_from_notion_page(
     limitations = _first_existing_text_prop(props, ("Limitations", "Weaknesses", "局限"))
     relevance = _first_existing_text_prop(props, ("Relevance", "Why Relevant", "PhD Relevance", "Related to My Work", "与我相关"))
     notebooklm_audio = _first_existing_text_prop(props, ("NotebookLM Audio", "NotebookLM", "Deep Dive Audio", "Audio"))
-    obsidian_note = _first_existing_text_prop(props, ("Obsidian", "Obsidian Note", "Obsidian Path"))
+    obsidian_note = _existing_obsidian_note_path(
+        title=title,
+        authors=authors,
+        year=year,
+        explicit_path=_first_existing_text_prop(props, ("Obsidian", "Obsidian Note", "Obsidian Path")),
+    )
     local_fulltext = _first_existing_text_prop(props, ("Local Fulltext", "Fulltext Path", "Local Full Text"))
     local_document = _first_existing_text_prop(props, ("Local PDF", "Local Document", "PDF Path"))
     updated_at = str(page.get("last_edited_time") or page.get("created_time") or "")
@@ -238,8 +267,8 @@ def reader_paper_from_notion_page(
     return ReaderPaper(
         paper_id=paper_id,
         title=title,
-        authors=_authors_content(props.get("Authors", {})),
-        year=_year_from_props(props),
+        authors=authors,
+        year=year,
         venue=venue,
         topic_slug=topic_slug,
         source_label=source_label,

@@ -42,6 +42,28 @@ def test_reader_paper_from_notion_page_maps_common_properties():
     assert paper.projects == ["FrenchBBQ", "Social Science Readings"]
 
 
+def test_reader_paper_from_notion_page_links_existing_obsidian_note_by_convention(tmp_path: Path, monkeypatch):
+    vault = tmp_path / "Obsidian Vault"
+    note = vault / "papers" / "2026-a-bias-benchmark.md"
+    note.parent.mkdir(parents=True)
+    note.write_text("---\ntitle: Bias Benchmark\n---\n# Note\n", encoding="utf-8")
+    monkeypatch.setattr(reader_site, "get_obsidian_vault", lambda: vault)
+    page = {
+        "id": "page-123",
+        "url": "https://notion.so/page-123",
+        "properties": {
+            "Title": {"title": [{"plain_text": "Bias Benchmark"}]},
+            "Authors": {"rich_text": [{"plain_text": "Alice A"}]},
+            "Published": {"date": {"start": "2026-01-02"}},
+            "Status": {"select": {"name": "To Read"}},
+        },
+    }
+
+    paper = reader_paper_from_notion_page(page, topic_slug="bias-fairness", source_label="ACL")
+
+    assert paper.obsidian_note == str(note)
+
+
 def test_render_site_writes_index_detail_assets_and_escapes_html(tmp_path: Path):
     papers = [
         ReaderPaper(

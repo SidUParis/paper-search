@@ -10,6 +10,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import json
 from pathlib import Path
+import re
 from typing import Any
 
 from paper_search.notion_sync import get_notion_client
@@ -209,6 +210,61 @@ def _write_paper_metadata(site_dir: Path, paper_id: str, updates: dict[str, Any]
         data_path.write_text(json.dumps(papers, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
+def _frontmatter_value(value: Any) -> str:
+    text = str(value or "")
+    if not text or re.search(r"[:#\[\]{}\n]|^\s|\s$", text):
+        return json.dumps(text, ensure_ascii=False)
+    return text
+
+
+def _split_frontmatter(text: str) -> tuple[str, str]:
+    if text.startswith("---\n"):
+        end = text.find("\n---", 4)
+        if end != -1:
+            body_start = end + len("\n---")
+            if text[body_start:body_start + 1] == "\n":
+                body_start += 1
+            return text[4:end], text[body_start:]
+    return "", text
+
+
+def _merge_frontmatter(frontmatter: str, updates: dict[str, Any]) -> str:
+    remaining = dict(updates)
+    lines: list[str] = []
+    for line in frontmatter.splitlines():
+        match = re.match(r"^([A-Za-z0-9_-]+):", line)
+        if match and match.group(1) in remaining:
+            key = match.group(1)
+            lines.append(f"{key}: {_frontmatter_value(remaining.pop(key))}")
+        else:
+            lines.append(line)
+    for key, value in remaining.items():
+        lines.append(f"{key}: {_frontmatter_value(value)}")
+    return "\n".join(lines).strip()
+
+
+def _sync_obsidian_metadata(paper: dict[str, Any], updates: dict[str, Any]) -> dict[str, Any]:
+    """Refresh only generated metadata frontmatter in the linked Obsidian note."""
+
+    raw_path = str(paper.get("obsidian_note") or "").strip()
+    if not raw_path:
+        return {"obsidian_synced": False, "obsidian_note": ""}
+    note_path = Path(raw_path).expanduser()
+    if not note_path.exists() or not note_path.is_file():
+        return {"obsidian_synced": False, "obsidian_note": str(note_path)}
+    text = note_path.read_text(encoding="utf-8")
+    frontmatter, body = _split_frontmatter(text)
+    notion_status = str(updates.get("reading_status") or updates.get("status") or "").strip()
+    metadata_updates: dict[str, Any] = {}
+    if notion_status:
+        metadata_updates["reading_status"] = notion_status
+        metadata_updates["notion_status"] = notion_status
+    metadata_updates["metadata_synced_at"] = datetime.now(timezone.utc).isoformat()
+    merged = _merge_frontmatter(frontmatter, metadata_updates)
+    note_path.write_text(f"---\n{merged}\n---\n{body}", encoding="utf-8")
+    return {"obsidian_synced": True, "obsidian_note": str(note_path)}
+
+
 def update_reading_status(
     *,
     site_dir: Path,
@@ -222,13 +278,16 @@ def update_reading_status(
     status = normalize_reading_status(str(payload.get("status") or ""))
     client = notion_client or get_notion_client()
     client.pages.update(page_id=paper_id, properties={"Status": {"select": {"name": status}}})
-    _write_paper_metadata(site_dir, paper_id, {"status": status, "reading_status": status})
+    updates = {"status": status, "reading_status": status}
+    _write_paper_metadata(site_dir, paper_id, updates)
+    obsidian_result = _sync_obsidian_metadata(paper, updates)
     return {
         "ok": True,
         "paper_id": paper_id,
         "title": paper.get("title"),
         "status": status,
         "reading_status": status,
+        **obsidian_result,
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
 

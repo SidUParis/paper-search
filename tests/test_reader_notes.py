@@ -37,20 +37,18 @@ class FakeNotionClient:
         self.pages = FakePages()
 
 
-def _make_site(tmp_path: Path) -> Path:
+def _make_site(tmp_path: Path, paper_updates: dict | None = None) -> Path:
     site = tmp_path / "site"
     (site / "data").mkdir(parents=True)
-    (site / "data" / "papers.json").write_text(
-        json.dumps([
-            {
-                "paper_id": "notion-page-1",
-                "title": "Bias Benchmark Paper",
-                "topic_slug": "bias-fairness",
-                "source_label": "ACL",
-            }
-        ]),
-        encoding="utf-8",
-    )
+    paper = {
+        "paper_id": "notion-page-1",
+        "title": "Bias Benchmark Paper",
+        "topic_slug": "bias-fairness",
+        "source_label": "ACL",
+    }
+    if paper_updates:
+        paper.update(paper_updates)
+    (site / "data" / "papers.json").write_text(json.dumps([paper]), encoding="utf-8")
     return site
 
 
@@ -148,6 +146,41 @@ def test_update_reading_status_writes_notion_status_and_local_metadata(tmp_path:
     papers = json.loads((site / "data" / "papers.json").read_text(encoding="utf-8"))
     assert papers[0]["status"] == "Read"
     assert papers[0]["reading_status"] == "Read"
+
+
+def test_update_reading_status_syncs_obsidian_frontmatter_without_touching_body(tmp_path: Path):
+    note_path = tmp_path / "vault" / "papers" / "bias-benchmark-paper.md"
+    note_path.parent.mkdir(parents=True)
+    note_path.write_text(
+        "---\n"
+        "title: Bias Benchmark Paper\n"
+        "status: active\n"
+        "reading_status: To Read\n"
+        "review_status: summarized\n"
+        "---\n"
+        "\n"
+        "# Manual note body\n"
+        "Keep my handwritten synthesis.\n",
+        encoding="utf-8",
+    )
+    site = _make_site(tmp_path, {"obsidian_note": str(note_path)})
+    client = FakeNotionClient()
+
+    result = update_reading_status(
+        site_dir=site,
+        payload={"paper_key": "notion-page-1", "status": "read"},
+        notion_client=client,
+    )
+
+    text = note_path.read_text(encoding="utf-8")
+    assert result["obsidian_synced"] is True
+    assert result["obsidian_note"] == str(note_path)
+    assert "reading_status: Read" in text
+    assert "notion_status: Read" in text
+    assert "status: active" in text
+    assert "review_status: summarized" in text
+    assert "# Manual note body" in text
+    assert "Keep my handwritten synthesis." in text
 
 
 def test_update_reading_status_rejects_unknown_status(tmp_path: Path):
