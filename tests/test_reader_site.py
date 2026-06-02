@@ -161,6 +161,9 @@ def test_render_site_adds_global_ai_terminal(tmp_path: Path):
     assert "Mark read" in app_js
     assert "paperReadingStatus" in app_js
     assert "updateReadingStatus" in app_js
+    assert "setReaderStatusNotice" in app_js
+    assert "data-reader-status-notice" in app_js
+    assert "addBubble('error',`Reading status update failed" not in app_js
     assert "selectInitialPaper" in app_js
     assert "fetch('/api/reading-status'" in app_js
     assert "Research Projects" in ai
