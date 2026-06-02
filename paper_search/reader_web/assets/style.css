@@ -78,3 +78,15 @@
 .paper-studio .paper-composer .mini-send{background:#1b1b1c;color:#fff;border-radius:999px!important}
 .paper-studio .model-dock{background:rgba(255,255,255,.78)!important;border:1px solid var(--line)!important;border-radius:16px;padding:12px!important;box-shadow:0 12px 34px rgba(33,36,44,.045)}
 .paper-studio .model-dock select,.paper-studio .model-dock input{background:#fff!important;border:1px solid var(--line)!important;color:var(--text)!important;border-radius:12px!important}
+
+/* AI Reader center panel color unification: Paper Intelligence metrics + Reading Notes */
+.paper-studio .center-intel-card{background:rgba(255,255,255,.88)!important;border-color:var(--line)!important;box-shadow:0 16px 46px rgba(33,36,44,.055)!important}
+.paper-studio .center-intel-card .intel-metrics div{background:#f6f3f4!important;border:1px solid var(--line)!important;border-radius:0;color:var(--text);box-shadow:none}
+.paper-studio .center-intel-card .intel-metrics small{color:#656977!important}
+.paper-studio .center-intel-card .intel-metrics strong{color:#111!important}
+.paper-studio .reading-note-panel{background:rgba(255,255,255,.82)!important;border-color:var(--line)!important;box-shadow:none}
+.paper-studio #reading-note-editor{background:#fff!important;border-color:var(--line)!important;color:var(--text)!important;border-radius:14px!important}
+.paper-studio #reading-note-editor::placeholder{color:#75727c!important}
+.paper-studio .note-panel-head span{color:#656977!important}
+.paper-studio .note-panel-actions .tiny{background:#fff!important;border:1px solid var(--line)!important;color:var(--text)!important}
+.paper-studio .note-panel-actions .tiny:hover{background:#f2f4ff!important;border-color:#c8d0ff!important;color:var(--blue)!important}
