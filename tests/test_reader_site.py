@@ -107,6 +107,7 @@ def test_render_site_adds_global_ai_terminal(tmp_path: Path):
     index = (tmp_path / "index.html").read_text(encoding="utf-8")
     ai = (tmp_path / "ai.html").read_text(encoding="utf-8")
     app_js = (tmp_path / "assets" / "app.js").read_text(encoding="utf-8")
+    style_css = (tmp_path / "assets" / "style.css").read_text(encoding="utf-8")
     assert "AI Reader" in index
     assert "AI Reader" in ai
     assert "xfair-logo.png" in ai
@@ -171,6 +172,8 @@ def test_render_site_adds_global_ai_terminal(tmp_path: Path):
     assert "id=\"taxonomy-topics\" class=\"taxonomy-tree compact\"" in ai
     assert "id=\"taxonomy-venues\" class=\"taxonomy-tree compact\"" in ai
     assert "class=\"taxonomy-utility-dock\"" in ai
+    assert ".taxonomy-utility-dock{position:fixed;left:24px;bottom:14px;z-index:80;display:flex;align-items:center;gap:10px;padding:0;border:0;background:transparent;box-shadow:none;backdrop-filter:none}" in style_css
+    assert "border-radius:18px;background:rgba(255,255,255,.82)" not in style_css
     assert "taxonomy-search-popover" not in ai
     assert "data-toggle-search" not in ai
     assert "aria-label=\"Toggle search filters\"" not in ai
