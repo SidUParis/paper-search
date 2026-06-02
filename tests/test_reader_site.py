@@ -203,6 +203,7 @@ def test_reader_stylesheet_is_not_line_numbered_or_truncated(tmp_path: Path):
     assert ".paper-studio .chat-starters .prompt-chip" in css
     assert "AI Reader center panel color unification" in css
     assert ".paper-studio .reading-note-panel" in css
+    assert "grid-template-columns:1fr 1fr" in css
 
 
 def test_render_site_adds_per_paper_ask_panel_with_presets(tmp_path: Path):

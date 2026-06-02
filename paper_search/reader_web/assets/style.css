@@ -88,5 +88,6 @@
 .paper-studio #reading-note-editor{background:#fff!important;border-color:var(--line)!important;color:var(--text)!important;border-radius:14px!important}
 .paper-studio #reading-note-editor::placeholder{color:#75727c!important}
 .paper-studio .note-panel-head span{color:#656977!important}
-.paper-studio .note-panel-actions .tiny{background:#fff!important;border:1px solid var(--line)!important;color:var(--text)!important}
+.paper-studio .note-panel-actions{display:grid!important;grid-template-columns:1fr 1fr;gap:8px;width:100%}
+.paper-studio .note-panel-actions .tiny{background:#fff!important;border:1px solid var(--line)!important;color:var(--text)!important;width:100%;min-width:0;white-space:nowrap;font-size:11px!important;padding:8px 9px!important}
 .paper-studio .note-panel-actions .tiny:hover{background:#f2f4ff!important;border-color:#c8d0ff!important;color:var(--blue)!important}
