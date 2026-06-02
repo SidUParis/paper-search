@@ -35,9 +35,9 @@ def build_chat_messages(
     site_dir: Path | str,
     question: str,
     paper_key: str | None = None,
-    mode: str = "balanced",
+    mode: str = "full_pdf",
     allowed_roots: list[Path] | None = None,
-    max_fulltext_chars: int = 24000,
+    max_fulltext_chars: int = 200000,
     reading_note: str | None = None,
     selected_visual: dict[str, Any] | None = None,
 ) -> list[dict[str, str]]:
@@ -152,9 +152,9 @@ def generate_chat_response(
     question = str(payload.get("question") or payload.get("message") or "").strip()
     paper_key_raw = payload.get("paper_key") or payload.get("paper_id") or payload.get("slug")
     paper_key = str(paper_key_raw).strip() if paper_key_raw else None
-    mode = str(payload.get("mode") or ("balanced" if paper_key else "library")).strip()
-    max_tokens = int(payload.get("max_tokens") or (2400 if paper_key else 4000))
-    max_fulltext_chars = int(payload.get("max_fulltext_chars") or 24000)
+    mode = str(payload.get("mode") or ("full_pdf" if paper_key else "library")).strip()
+    max_tokens = int(payload.get("max_tokens") or (3200 if paper_key else 4000))
+    max_fulltext_chars = int(payload.get("max_fulltext_chars") or 200000)
     reading_note = str(payload.get("reading_note") or "").strip() or None
     selected_visual_raw = payload.get("selected_visual")
     selected_visual = selected_visual_raw if isinstance(selected_visual_raw, dict) else None

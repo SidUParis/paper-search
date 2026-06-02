@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 import re
 from typing import Any
+from urllib.request import Request, urlopen
 import unicodedata
 
 
@@ -64,27 +65,115 @@ def make_head_tail_excerpt(text: str, max_chars: int = 24000) -> str:
     return f"{head}\n\n[MIDDLE OMITTED FOR BREVITY]\n\n{tail}"
 
 
-def _safe_read_text(path_text: str, allowed_roots: list[Path] | None) -> str:
+def _safe_resolve_path(path_text: str, allowed_roots: list[Path] | None) -> Path | None:
     if not path_text:
-        return ""
+        return None
     path = Path(path_text).expanduser()
     try:
         resolved = path.resolve()
     except OSError:
-        return ""
+        return None
     roots = [root.expanduser().resolve() for root in (allowed_roots or [])]
     if roots:
         try:
             if not any(resolved.is_relative_to(root) for root in roots):
-                return ""
+                return None
         except AttributeError:  # pragma: no cover - Python 3.8 compatibility guard
             if not any(str(resolved).startswith(str(root)) for root in roots):
-                return ""
+                return None
     if not resolved.exists() or not resolved.is_file():
+        return None
+    return resolved
+
+
+def _safe_read_text(path_text: str, allowed_roots: list[Path] | None) -> str:
+    resolved = _safe_resolve_path(path_text, allowed_roots)
+    if resolved is None:
         return ""
     try:
         return resolved.read_text(encoding="utf-8", errors="ignore")
     except OSError:
+        return ""
+
+
+def _extract_pdf_text_from_bytes(pdf_bytes: bytes) -> str:
+    try:
+        import fitz
+    except ImportError:
+        return ""
+    try:
+        with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
+            pages = []
+            for page_index in range(len(doc)):
+                page = doc.load_page(page_index)
+                raw_text = page.get_text("text")
+                text = raw_text.strip() if isinstance(raw_text, str) else str(raw_text or "").strip()
+                if text:
+                    pages.append(f"[PDF page {page_index + 1}]\n{text}")
+            return "\n\n".join(pages)
+    except Exception:
+        return ""
+
+
+def _pdf_url_from_source(source_url: str) -> str:
+    url = str(source_url or "").strip()
+    if not url.startswith(("http://", "https://")):
+        return ""
+    if url.lower().endswith(".pdf"):
+        return url
+    if "aclanthology.org/" in url:
+        return url.rstrip("/") + ".pdf"
+    if "arxiv.org/abs/" in url:
+        return url.replace("/abs/", "/pdf/").rstrip("/") + ".pdf"
+    return ""
+
+
+def _safe_extract_remote_pdf_text(url: str, cache_key: str, cache_dir: Path) -> str:
+    pdf_url = _pdf_url_from_source(url)
+    if not pdf_url:
+        return ""
+    safe_key = re.sub(r"[^A-Za-z0-9_.-]+", "-", cache_key or "paper").strip("-") or "paper"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    cache_path = cache_dir / f"{safe_key}.txt"
+    if cache_path.exists():
+        try:
+            return cache_path.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            pass
+    try:
+        req = Request(pdf_url, headers={"User-Agent": "xfairllm-reader/1.0"})
+        with urlopen(req, timeout=30) as response:  # noqa: S310 - controlled paper PDF fetch
+            pdf_bytes = response.read(60 * 1024 * 1024)
+    except Exception:
+        return ""
+    text = _extract_pdf_text_from_bytes(pdf_bytes)
+    if text:
+        try:
+            cache_path.write_text(text, encoding="utf-8")
+        except OSError:
+            pass
+    return text
+
+
+def _safe_extract_pdf_text(path_text: str, allowed_roots: list[Path] | None) -> str:
+    resolved = _safe_resolve_path(path_text, allowed_roots)
+    if resolved is None:
+        return ""
+    try:
+        import fitz
+    except ImportError:
+        return ""
+    try:
+        with fitz.open(resolved) as doc:
+            pages = []
+            for page_index in range(len(doc)):
+                page = doc.load_page(page_index)
+                raw_text = page.get_text("text")
+                text = raw_text.strip() if isinstance(raw_text, str) else str(raw_text or "").strip()
+                if text:
+                    pages.append(f"[PDF page {page_index + 1}]\n{text}")
+            return "\n\n".join(pages)
+    except Exception:
         return ""
 
 
@@ -168,12 +257,36 @@ def build_paper_context(
         parts.append("[Extracted visuals]\n" + "\n".join(visual_lines))
         sources.append("Extracted visuals")
 
-    if mode in {"balanced", "deep"}:
+    if mode in {"balanced", "deep", "full_pdf"}:
         fulltext = _safe_read_text(str(paper.get("local_fulltext") or ""), allowed_roots)
+        if not fulltext and mode == "full_pdf":
+            fulltext = _safe_extract_pdf_text(str(paper.get("local_document") or ""), allowed_roots)
+        if not fulltext and mode == "full_pdf":
+            pdf_url = _pdf_url_from_source(str(paper.get("source_url") or ""))
+            if pdf_url:
+                fulltext = _safe_extract_remote_pdf_text(
+                    pdf_url,
+                    str(paper.get("paper_id") or paper_key or "paper"),
+                    Path(site_dir) / "cache" / "pdf_text",
+                )
         if fulltext:
-            excerpt = make_head_tail_excerpt(fulltext, max_chars=max_fulltext_chars)
-            parts.append(f"[Fulltext excerpt]\n{excerpt}")
-            sources.append("Fulltext excerpt")
+            if mode == "full_pdf":
+                fulltext = fulltext.strip()
+                if max_fulltext_chars > 0 and len(fulltext) > max_fulltext_chars:
+                    parts.append(
+                        f"[Full PDF text - clipped at {max_fulltext_chars} chars; original length {len(fulltext)}]\n"
+                        f"{make_head_tail_excerpt(fulltext, max_chars=max_fulltext_chars)}"
+                    )
+                    sources.append("Full PDF text clipped")
+                else:
+                    parts.append(f"[Full PDF text]\n{fulltext}")
+                    sources.append("Full PDF text")
+            else:
+                excerpt = make_head_tail_excerpt(fulltext, max_chars=max_fulltext_chars)
+                parts.append(f"[Fulltext excerpt]\n{excerpt}")
+                sources.append("Fulltext excerpt")
+        elif mode == "full_pdf":
+            parts.append("[Full PDF status] Local fulltext/PDF text is not available for this paper; answer only from synced metadata/notes and say when evidence is insufficient.")
 
     return PaperContext(paper=paper, text="\n\n".join(parts), sources=sources)
 

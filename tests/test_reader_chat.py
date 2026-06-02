@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from paper_search.reader_chat import build_chat_messages, generate_chat_response
@@ -51,6 +52,97 @@ def test_build_chat_messages_can_include_reader_note_and_selected_visual(tmp_pat
     assert "FrenchBBQ 可复用" in content
     assert "[Selected visual]" in content
     assert "Figure 2 · Pipeline" in content
+
+
+def test_build_chat_messages_for_paper_defaults_to_full_local_fulltext(tmp_path: Path):
+    site = tmp_path / "site"
+    fulltext = tmp_path / "fulltext" / "p1.md"
+    fulltext.parent.mkdir(parents=True)
+    long_middle = "MIDDLE_SECTION_SENTINEL " + ("important middle evidence " * 1800)
+    fulltext.write_text("INTRO PDF TEXT\n" + long_middle + "\nCONCLUSION PDF TEXT", encoding="utf-8")
+    (site / "data").mkdir(parents=True)
+    (site / "data" / "papers.json").write_text(
+        json.dumps([{"paper_id": "p1", "title": "Full PDF Paper", "local_fulltext": str(fulltext)}]),
+        encoding="utf-8",
+    )
+
+    messages = build_chat_messages(
+        site,
+        question="请根据整篇 PDF 回答。",
+        paper_key="p1",
+        allowed_roots=[tmp_path],
+    )
+
+    content = messages[1]["content"]
+    assert "[Full PDF text]" in content
+    assert "INTRO PDF TEXT" in content
+    assert "MIDDLE_SECTION_SENTINEL" in content
+    assert "CONCLUSION PDF TEXT" in content
+    assert "[MIDDLE OMITTED FOR BREVITY]" not in content
+
+
+def test_build_chat_messages_falls_back_to_full_pdf_document_text(tmp_path: Path):
+    import fitz
+
+    site = tmp_path / "site"
+    pdf = tmp_path / "pdfs" / "p1.pdf"
+    pdf.parent.mkdir(parents=True)
+    doc = fitz.open()
+    page = doc.new_page()
+    page.insert_text((72, 72), "PDF_DOCUMENT_SENTINEL full pdf body evidence")
+    doc.save(pdf)
+    doc.close()
+    (site / "data").mkdir(parents=True)
+    (site / "data" / "papers.json").write_text(
+        json.dumps([{"paper_id": "p1", "title": "PDF Only Paper", "local_document": str(pdf)}]),
+        encoding="utf-8",
+    )
+
+    messages = build_chat_messages(
+        site,
+        question="请根据整篇 PDF 回答。",
+        paper_key="p1",
+        allowed_roots=[tmp_path],
+    )
+
+    content = messages[1]["content"]
+    assert "[Full PDF text]" in content
+    assert "PDF_DOCUMENT_SENTINEL" in content
+
+
+def test_build_chat_messages_falls_back_to_remote_pdf_source_text(tmp_path: Path, monkeypatch):
+    from paper_search import reader_context
+
+    site = tmp_path / "site"
+    (site / "data").mkdir(parents=True)
+    (site / "data" / "papers.json").write_text(
+        json.dumps([
+            {
+                "paper_id": "p1",
+                "title": "ACL Remote PDF Paper",
+                "source_url": "https://aclanthology.org/2025.emnlp-main.1640/",
+            }
+        ]),
+        encoding="utf-8",
+    )
+    seen = {}
+
+    def fake_remote_pdf_text(url: str, cache_key: str, cache_dir: Path) -> str:
+        seen["url"] = url
+        seen["cache_key"] = cache_key
+        seen["cache_dir"] = cache_dir
+        return "REMOTE_PDF_SENTINEL full remote pdf evidence"
+
+    monkeypatch.setattr(reader_context, "_safe_extract_remote_pdf_text", fake_remote_pdf_text)
+
+    messages = build_chat_messages(site, question="请根据整篇 PDF 回答。", paper_key="p1")
+
+    content = messages[1]["content"]
+    assert seen["url"] == "https://aclanthology.org/2025.emnlp-main.1640.pdf"
+    assert seen["cache_key"] == "p1"
+    assert seen["cache_dir"] == site / "cache" / "pdf_text"
+    assert "[Full PDF text]" in content
+    assert "REMOTE_PDF_SENTINEL" in content
 
 
 def test_build_chat_messages_for_library_uses_related_papers(tmp_path: Path):

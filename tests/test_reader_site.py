@@ -113,6 +113,8 @@ def test_render_site_adds_global_ai_terminal(tmp_path: Path):
     assert "Save current AI answer" not in ai
     assert "mini-send" in ai
     assert "fetch('/api/chat'" in app_js
+    assert "state.paper?'full_pdf':'library'" in app_js
+    assert "max_fulltext_chars:200000" in app_js
     assert "detectNotionIntent" in app_js
     assert "confirm-note-save" in app_js
     assert "fetch('/api/notes/save'" in app_js
