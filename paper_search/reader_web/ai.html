@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="zh-CN">
-<head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>AI Reader · __SITE_TITLE__</title><link rel="stylesheet" href="assets/style.css?v=multi-7" /></head>
+<head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>AI Reader · __SITE_TITLE__</title><link rel="stylesheet" href="assets/style.css?v=multi-8" /></head>
 <body class="reader-app ai-reader-app paper-studio" data-page="ai">
   <aside class="reader-left taxonomy-sidebar">
     <a class="brand-block compact-brand brand-link" href="https://www.xfairllm.com/" aria-label="Back to xfairllm.com"><img class="brand-logo" src="assets/xfair-logo.png" alt="XFaiR LLM logo" /><div><strong>XFaiR LLM</strong><span>Back to main site</span></div></a>
@@ -35,16 +35,16 @@
       </div>
     </section>
 
-    <section class="taxonomy-actions">
-      <a href="admin.html">↻ Sync with Obsidian</a>
-      <a href="models.html">⚙ Settings</a>
-    </section>
-
-    <section class="reader-filter-state" aria-label="Current paper filters">
-      <input id="ai-paper-search" class="full-input" placeholder="Search in selected group…" />
-      <select id="ai-topic-filter" class="full-input"><option value="">All topics</option></select>
-      <select id="ai-source-filter" class="full-input"><option value="">All sources</option></select>
-      <select id="ai-tag-filter" class="full-input"><option value="">All tags</option></select>
+    <section class="taxonomy-utility-dock" aria-label="Reader utilities">
+      <button type="button" class="dock-icon" data-toggle-search aria-label="Toggle search filters" title="Search">⌕</button>
+      <a class="dock-icon" href="admin.html" aria-label="Sync with Obsidian" title="Sync with Obsidian">↻</a>
+      <a class="dock-icon" href="models.html" aria-label="Settings" title="Settings">⚙</a>
+      <div id="taxonomy-search-popover" class="taxonomy-search-popover hidden" aria-label="Current paper filters">
+        <input id="ai-paper-search" class="full-input" placeholder="Search selected group…" />
+        <select id="ai-topic-filter" class="full-input"><option value="">All topics</option></select>
+        <select id="ai-source-filter" class="full-input"><option value="">All sources</option></select>
+        <select id="ai-tag-filter" class="full-input"><option value="">All tags</option></select>
+      </div>
     </section>
 
   </aside>
@@ -115,6 +115,6 @@
       <input id="chat-model" type="hidden" value="deepseek-v4-flash" />
     </form>
   </aside>
-  <script src="assets/app.js?v=multi-7"></script>
+  <script src="assets/app.js?v=multi-8"></script>
 </body>
 </html>

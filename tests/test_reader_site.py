@@ -166,6 +166,13 @@ def test_render_site_adds_global_ai_terminal(tmp_path: Path):
     assert "selectTaxonomy" in app_js
     assert "inlineTaxonomySubmenu" in app_js
     assert "renderTaxonomySubmenu" not in app_js
+    assert "toggleUtilityDock" in app_js
+    assert "type === state.taxonomyMode && String(value||'') === state.taxonomyValue" in app_js
+    assert "class=\"taxonomy-utility-dock\"" in ai
+    assert "data-toggle-search" in ai
+    assert "aria-label=\"Toggle search filters\"" in ai
+    assert "Search in selected group" not in ai
+    assert "taxonomy-actions" not in ai
     assert "Areas" not in ai
 
 
