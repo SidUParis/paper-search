@@ -128,6 +128,9 @@ def test_render_site_adds_global_ai_terminal(tmp_path: Path):
     assert "fetch('/api/chat'" in app_js
     assert "state.paper?'full_pdf':'library'" in app_js
     assert "max_fulltext_chars:200000" in app_js
+    assert "/paper-assets/pdf/" in app_js
+    assert "/paper-assets/pdf-page/" in app_js
+    assert "/pdf-info" in app_js
     assert "loadModelPresets" in app_js
     assert "fetch('/api/models'" in app_js
     assert "cfg.presets" in app_js

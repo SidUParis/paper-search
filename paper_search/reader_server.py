@@ -15,10 +15,12 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import io
 import json
 import mimetypes
+import re
 from pathlib import Path
 from types import TracebackType
 from typing import Any
 from urllib.parse import unquote, urlparse
+from urllib.request import Request, urlopen
 
 
 def _path_is_allowed(path: Path, roots: list[Path]) -> bool:
@@ -27,6 +29,89 @@ def _path_is_allowed(path: Path, roots: list[Path]) -> bool:
     if not allowed:
         return False
     return any(resolved.is_relative_to(root) for root in allowed)
+
+
+def _pdf_url_from_source(source_url: str) -> str:
+    raw = str(source_url or "").strip()
+    if not raw:
+        return ""
+    parsed = urlparse(raw)
+    if parsed.scheme not in {"http", "https"}:
+        return ""
+    if parsed.netloc.endswith("arxiv.org") and "/abs/" in parsed.path:
+        pdf = raw.replace("http://", "https://", 1).replace("/abs/", "/pdf/", 1)
+        return pdf[:-4] if pdf.endswith(".pdf") else f"{pdf}.pdf"
+    acl = re.match(r"^https?://aclanthology\.org/([^/?#]+)/?$", raw)
+    if acl:
+        return f"https://aclanthology.org/{acl.group(1)}.pdf"
+    if parsed.path.lower().endswith(".pdf"):
+        return raw.replace("http://", "https://", 1)
+    return ""
+
+
+def _safe_cache_name(paper_key: str) -> str:
+    return re.sub(r"[^A-Za-z0-9_.-]+", "-", str(paper_key or "paper")).strip("-") or "paper"
+
+
+def _download_remote_pdf_to_cache(site_dir: Path, paper_key: str, source_url: str) -> Path | None:
+    pdf_url = _pdf_url_from_source(source_url)
+    if not pdf_url:
+        return None
+    cache_dir = site_dir / "cache" / "pdf"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    cache_path = cache_dir / f"{_safe_cache_name(paper_key)}.pdf"
+    if cache_path.exists() and cache_path.stat().st_size > 1024:
+        return cache_path
+    req = Request(pdf_url, headers={"User-Agent": "Mozilla/5.0 (compatible; XFaiR-Reader/1.0)"})
+    try:
+        with urlopen(req, timeout=45) as response:
+            content_type = str(response.headers.get("Content-Type") or "").lower()
+            data = response.read(80 * 1024 * 1024)
+    except Exception:
+        return None
+    if not data.startswith(b"%PDF") and "pdf" not in content_type:
+        return None
+    cache_path.write_bytes(data)
+    return cache_path
+
+
+def _paper_pdf_path(site_dir: Path, paper_key: str, allowed_roots: list[Path]) -> Path | None:
+    papers = _load_papers(site_dir)
+    paper = next((p for p in papers if str(p.get("paper_id") or "") == paper_key), None)
+    if paper is None:
+        return None
+    local = str(paper.get("local_document") or "").strip()
+    if local:
+        try:
+            resolved = Path(local).expanduser().resolve()
+            if resolved.exists() and resolved.is_file() and _path_is_allowed(resolved, allowed_roots):
+                return resolved
+        except OSError:
+            pass
+    return _download_remote_pdf_to_cache(site_dir, paper_key, str(paper.get("source_url") or ""))
+
+
+def _pdf_page_count(pdf_path: Path) -> int:
+    import fitz  # type: ignore
+
+    doc = fitz.open(str(pdf_path))
+    try:
+        return int(doc.page_count)
+    finally:
+        doc.close()
+
+
+def _render_pdf_page_png(pdf_path: Path, page_number: int, zoom: float = 1.6) -> bytes:
+    import fitz  # type: ignore
+
+    doc = fitz.open(str(pdf_path))
+    try:
+        page_index = max(0, min(int(page_number) - 1, doc.page_count - 1))
+        page = doc.load_page(page_index)
+        pix = page.get_pixmap(matrix=fitz.Matrix(zoom, zoom), alpha=False)
+        return pix.tobytes("png")
+    finally:
+        doc.close()
 
 
 def _paper_asset_path(site_dir: Path, paper_key: str, kind: str, allowed_roots: list[Path]) -> Path | None:
@@ -184,6 +269,19 @@ def create_reader_handler(config: ReaderServerConfig):
 
                 self._send_json(ReaderModelRegistry(config.state_dir).public_config())
                 return
+            if path.startswith("/api/papers/") and path.endswith("/pdf-info"):
+                paper_key = unquote(path.removeprefix("/api/papers/").removesuffix("/pdf-info").strip("/"))
+                pdf = _paper_pdf_path(config.site_dir, paper_key, config.allowed_context_roots)
+                if pdf is None:
+                    self._send_json({"error": "pdf_not_found", "paper_key": paper_key}, status=HTTPStatus.NOT_FOUND)
+                    return
+                try:
+                    pages = _pdf_page_count(pdf)
+                except Exception as exc:
+                    self._send_json({"error": "pdf_info_failed", "message": str(exc)}, status=HTTPStatus.BAD_REQUEST)
+                    return
+                self._send_json({"paper_key": paper_key, "pages": pages, "url": f"/paper-assets/pdf/{paper_key}"})
+                return
             if path.startswith("/api/papers/") and path.endswith("/context"):
                 from paper_search.reader_context import build_paper_context
 
@@ -213,9 +311,30 @@ def create_reader_handler(config: ReaderServerConfig):
                 return
             if path.startswith("/paper-assets/"):
                 parts = [part for part in path.split("/") if part]
+                if len(parts) == 4 and parts[1] == "pdf-page":
+                    _, _, paper_key, page_name = parts
+                    paper_key = unquote(paper_key)
+                    page_raw = page_name.removesuffix(".png")
+                    try:
+                        page_number = max(1, int(page_raw))
+                    except ValueError:
+                        page_number = 1
+                    asset = _paper_pdf_path(config.site_dir, paper_key, config.allowed_context_roots)
+                    if asset is not None:
+                        try:
+                            self._send_bytes(_render_pdf_page_png(asset, page_number), content_type="image/png")
+                            return
+                        except Exception:
+                            pass
                 if len(parts) == 3:
                     _, kind, paper_key = parts
-                    asset = _paper_asset_path(config.site_dir, unquote(paper_key), kind, config.allowed_context_roots)
+                    paper_key = unquote(paper_key)
+                    if kind == "pdf":
+                        asset = _paper_pdf_path(config.site_dir, paper_key, config.allowed_context_roots)
+                        if asset is not None:
+                            self._send_bytes(asset.read_bytes(), content_type="application/pdf")
+                            return
+                    asset = _paper_asset_path(config.site_dir, paper_key, kind, config.allowed_context_roots)
                     if asset is not None:
                         content_type = mimetypes.guess_type(str(asset))[0] or "application/octet-stream"
                         self._send_bytes(asset.read_bytes(), content_type=content_type)

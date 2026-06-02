@@ -74,6 +74,85 @@ def test_paper_audio_asset_is_served_through_safe_route(tmp_path: Path):
     assert response.headers["Content-Type"].startswith("audio/")
 
 
+def test_paper_pdf_asset_prefers_local_document_safe_route(tmp_path: Path):
+    site = _make_site(tmp_path)
+    pdf = tmp_path / "paper.pdf"
+    pdf.write_bytes(b"%PDF-local")
+    data_path = site / "data" / "papers.json"
+    papers = json.loads(data_path.read_text(encoding="utf-8"))
+    papers[0]["local_document"] = str(pdf)
+    data_path.write_text(json.dumps(papers), encoding="utf-8")
+    handler = create_reader_handler(
+        ReaderServerConfig(site_dir=site, profile="private", site_title="Test Reader", allowed_context_roots=[tmp_path])
+    )
+
+    response = handler.handle_test_request("/paper-assets/pdf/p1")
+
+    assert response.status == 200
+    assert response.body == b"%PDF-local"
+    assert response.headers["Content-Type"].startswith("application/pdf")
+
+
+def test_paper_pdf_asset_downloads_remote_pdf_to_same_origin_cache(tmp_path: Path, monkeypatch):
+    site = _make_site(tmp_path)
+    data_path = site / "data" / "papers.json"
+    papers = json.loads(data_path.read_text(encoding="utf-8"))
+    papers[0]["source_url"] = "https://arxiv.org/abs/2604.03238v2"
+    data_path.write_text(json.dumps(papers), encoding="utf-8")
+
+    class FakeResponse:
+        headers = {"Content-Type": "application/pdf"}
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            return False
+        def read(self, _limit):
+            return b"%PDF-remote"
+
+    requested = []
+    def fake_urlopen(req, timeout=0):
+        requested.append(req.full_url)
+        return FakeResponse()
+
+    monkeypatch.setattr("paper_search.reader_server.urlopen", fake_urlopen)
+    handler = create_reader_handler(ReaderServerConfig(site_dir=site, profile="private", site_title="Test Reader"))
+
+    response = handler.handle_test_request("/paper-assets/pdf/p1")
+
+    assert response.status == 200
+    assert response.body == b"%PDF-remote"
+    assert requested == ["https://arxiv.org/pdf/2604.03238v2.pdf"]
+    assert (site / "cache" / "pdf" / "p1.pdf").read_bytes() == b"%PDF-remote"
+
+
+def test_paper_pdf_page_asset_renders_png_preview(tmp_path: Path):
+    import fitz  # type: ignore
+
+    site = _make_site(tmp_path)
+    pdf = tmp_path / "render.pdf"
+    doc = fitz.open()
+    page = doc.new_page()
+    page.insert_text((72, 72), "Rendered PDF preview")
+    doc.save(str(pdf))
+    doc.close()
+    data_path = site / "data" / "papers.json"
+    papers = json.loads(data_path.read_text(encoding="utf-8"))
+    papers[0]["local_document"] = str(pdf)
+    data_path.write_text(json.dumps(papers), encoding="utf-8")
+    handler = create_reader_handler(
+        ReaderServerConfig(site_dir=site, profile="private", site_title="Test Reader", allowed_context_roots=[tmp_path])
+    )
+
+    info = handler.handle_test_request("/api/papers/p1/pdf-info")
+    image = handler.handle_test_request("/paper-assets/pdf-page/p1/1.png")
+
+    assert info.status == 200
+    assert json.loads(info.body.decode("utf-8"))["pages"] == 1
+    assert image.status == 200
+    assert image.headers["Content-Type"].startswith("image/png")
+    assert image.body.startswith(b"\x89PNG")
+
+
 def test_papers_api_loads_generated_metadata(tmp_path: Path):
     response = _request(tmp_path, "/api/papers")
 
