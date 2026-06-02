@@ -123,3 +123,12 @@
 .paper-studio .composer-tools{gap:4px;padding-right:6px}
 .paper-studio .composer-icon{width:30px;height:34px;font-size:19px}
 .paper-studio .composer-model{font-size:13px;padding-left:8px;padding-right:18px;text-overflow:ellipsis}
+
+/* Chat composer v4: prompt textarea on top, tools/model/send on the row below */
+.paper-studio .paper-composer{grid-template-columns:minmax(0,1fr)!important;grid-template-rows:auto auto auto!important;gap:8px!important;align-items:stretch!important;padding:10px!important}
+.paper-studio .paper-composer textarea{grid-column:1!important;width:100%;min-height:58px!important;padding:4px 2px!important}
+.paper-studio .composer-control-row{grid-column:1;display:grid;grid-template-columns:auto minmax(116px,1fr) 34px;gap:8px;align-items:center;width:100%}
+.paper-studio .composer-control-row .composer-tools{border-right:0;padding-right:0;gap:6px}
+.paper-studio .composer-control-row .composer-model{height:34px;border:1px solid var(--line);border-radius:999px;background:#fff;padding:0 24px 0 12px;max-width:100%}
+.paper-studio .upload-chip-row{grid-column:1!important}
+

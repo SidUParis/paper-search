@@ -115,6 +115,7 @@ def test_render_site_adds_global_ai_terminal(tmp_path: Path):
     assert "chat-file-input" in ai
     assert "web-search-toggle" in ai
     assert "chat-model-preset" in ai
+    assert "composer-control-row" in ai
     assert "aria-label=\"Attach temporary session file\"" in ai
     assert "🤖" not in ai
     assert "fetch('/api/chat'" in app_js
@@ -213,6 +214,8 @@ def test_reader_stylesheet_is_not_line_numbered_or_truncated(tmp_path: Path):
     assert "AI Reader center panel color unification" in css
     assert ".paper-studio .reading-note-panel" in css
     assert "grid-template-columns:1fr 1fr" in css
+    assert ".paper-studio .paper-composer{grid-template-columns:minmax(0,1fr)!important" in css
+    assert ".paper-studio .composer-control-row" in css
 
 
 def test_render_site_adds_per_paper_ask_panel_with_presets(tmp_path: Path):
