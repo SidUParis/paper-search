@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>AI Reader · __SITE_TITLE__</title><link rel="stylesheet" href="assets/style.css?v=multi-15" /></head>
+<body class="reader-app ai-reader-app paper-studio" data-page="ai">
+  <aside class="reader-left taxonomy-sidebar">
+    <a class="brand-block compact-brand brand-link" href="https://www.xfairllm.com/" aria-label="Back to xfairllm.com"><img class="brand-logo" src="assets/xfair-logo.png" alt="XFaiR LLM logo" /><div><strong>XFaiR LLM</strong><span>Back to main site</span></div></a>
+    <nav class="side-nav ai-side-nav" aria-label="Reader sections">
+      <a class="side-link" href="index.html"><span>01</span>Discovery</a>
+      <a class="side-link" href="library.html"><span>02</span>Library</a>
+      <a class="side-link active" href="ai.html"><span>03</span>AI Reader</a>
+      <a class="side-link" href="admin.html"><span>04</span>Admin</a>
+      <a class="side-link" href="models.html"><span>05</span>Models</a>
+    </nav>
+
+    <section class="taxonomy-block">
+      <p class="eyebrow">Taxonomy</p>
+      <div class="taxonomy-group">
+        <button class="taxonomy-title" data-reset-taxonomy="1"><span>□</span><strong>All Papers</strong><em id="taxonomy-total">0</em></button>
+      </div>
+      <div class="taxonomy-group">
+        <div class="taxonomy-heading"><span>▣</span><strong>Research Projects</strong></div>
+        <div id="taxonomy-projects" class="taxonomy-tree compact"></div>
+      </div>
+      <div class="taxonomy-group">
+        <div class="taxonomy-heading"><span>◒</span><strong>Research Topics</strong></div>
+        <div id="taxonomy-topics" class="taxonomy-tree compact"></div>
+      </div>
+      <div class="taxonomy-group">
+        <div class="taxonomy-heading"><span>⌘</span><strong>Venues</strong></div>
+        <div id="taxonomy-venues" class="taxonomy-tree compact"></div>
+      </div>
+      <div class="taxonomy-group">
+        <div class="taxonomy-heading"><span>⚑</span><strong>Status</strong></div>
+        <div id="taxonomy-status" class="taxonomy-tree compact"></div>
+      </div>
+    </section>
+
+    <section class="taxonomy-utility-dock" aria-label="Reader utilities">
+      <a class="dock-icon" href="library.html" aria-label="Search papers">⌕</a>
+      <a class="dock-icon" href="admin.html" aria-label="Sync with Obsidian">↻</a>
+      <a class="dock-icon" href="models.html" aria-label="Settings">⚙</a>
+    </section>
+
+  </aside>
+
+  <main class="reader-center">
+    <header id="ai-paper-header" class="ai-paper-header"></header>
+    <section class="paper-intel-card center-intel-card">
+      <p class="eyebrow intel-title">Paper Intelligence</p>
+      <div class="intel-box"><strong>TLDR</strong><p id="insight-tldr">Select a paper to load a focused brief.</p></div>
+      <div class="intel-metrics"><div><small>Evidence Score</small><strong id="insight-score">—</strong></div><div><small>Novelty</small><strong id="insight-novelty">—</strong></div></div>
+      <div id="insight-meta" class="intel-meta"></div>
+    </section>
+    <section class="pdf-shell reading-workspace">
+      <div class="pdf-toolbar"><div><strong>PDF Preview</strong><span id="pdf-status">default view</span></div><div class="pdf-actions"><button id="show-pdf" class="tiny active">PDF</button><button id="show-figures" class="tiny">Figures</button><button id="show-note" class="tiny">Note</button><button id="show-audio" class="tiny">Audio</button><a id="open-source" class="tiny ghost" target="_blank" rel="noopener">Source</a></div></div>
+      <div class="reading-canvas">
+        <div id="pdf-frame" class="pdf-page-viewer" title="Paper PDF preview">
+          <div class="pdf-page-controls"><button id="pdf-prev-page" class="tiny ghost" type="button">← Prev</button><span id="pdf-page-label">Page — / —</span><button id="pdf-next-page" class="tiny ghost" type="button">Next →</button><button id="pdf-zoom-out" class="tiny ghost" type="button">−</button><span id="pdf-zoom-label">100%</span><button id="pdf-zoom-in" class="tiny ghost" type="button">＋</button><a id="open-pdf-full" class="tiny" target="_blank" rel="noopener">Open full PDF</a></div>
+          <div id="pdf-page-stage" class="pdf-page-stage"><div class="empty-mini">Select a paper to render its PDF.</div></div>
+        </div>
+        <aside class="reading-note-panel" aria-label="Reading notes">
+          <div class="note-panel-head"><strong>Reading Notes</strong><span>像 Notion 一样边读边记</span></div>
+          <textarea id="reading-note-editor" placeholder="在这里记你的 margin note：这张图说明了什么？和 FrenchBBQ / MultilingualBBQ 有什么关系？"></textarea>
+          <div class="note-panel-actions"><button id="send-note-to-chat" class="tiny">Ask with note</button><button id="save-reading-note" class="tiny ghost">Save to Notion</button></div>
+        </aside>
+      </div>
+      <article id="synced-note" class="synced-note hidden"></article>
+      <section id="visuals-panel" class="visuals-panel hidden" aria-label="Extracted figures and tables">
+        <div class="section-head"><span>Extracted Figures & Tables</span><strong id="figure-count">0</strong></div>
+        <button id="extract-current-figures" class="tiny extract-figures-btn">Extract current PDF figures</button>
+        <div id="figure-gallery" class="figure-gallery"></div>
+      </section>
+      <section id="audio-panel" class="audio-panel hidden" aria-label="NotebookLM audio deep dive">
+        <div class="section-head"><span>NotebookLM Audio</span><strong>Deep Dive</strong></div>
+        <div id="audio-player-card" class="audio-player-card"></div>
+      </section>
+    </section>
+  </main>
+
+  <aside class="reader-chat intelligence-panel">
+    <section class="contextual-chat-card">
+      <p class="eyebrow">AI Assisted Reading</p>
+      <div id="chat-log" class="chat-log"><div class="bubble assistant">选择左侧论文后，我会加载 metadata、fulltext excerpt、Obsidian/Notion 同步字段来回答。</div><div class="prompt-row vertical chat-starters" data-chat-starters>
+        <button class="prompt-chip" data-prompt="请用中文解释这篇论文的核心问题、方法和贡献。">中文讲解</button>
+        <button class="prompt-chip" data-prompt="请结合 PDF 和同步 note 拆解方法、实验与主要结论。">PDF+Note 方法拆解</button>
+        <button class="prompt-chip" data-prompt="这篇论文和我的 LLM bias / MultilingualBBQ 博士课题有什么关系？">和我的 PhD 关系</button>
+        <button class="prompt-chip" data-prompt="请提炼 related work 可引用点，并指出局限。">Related Work 可引用点</button>
+      </div></div>
+    </section>
+
+    <form id="chat-form" class="floating-composer paper-composer">
+      <textarea id="chat-question" placeholder="Ask naturally: 解释这篇 / 保存到 Notion / 更新 PhD Relevance…" rows="2"></textarea>
+      <div class="composer-control-row">
+        <div class="composer-tools" aria-label="Chat tools">
+          <label class="composer-icon" aria-label="Attach temporary session file" title="Attach temporary session file"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M8.5 12.7 14.9 6.3a3.2 3.2 0 0 1 4.5 4.5l-8.1 8.1a5 5 0 0 1-7.1-7.1l8.6-8.6"/><path d="m9.9 15.1 7.1-7.1"/></svg><input id="chat-file-input" type="file" multiple /></label>
+          <button id="web-search-toggle" class="composer-icon" type="button" aria-pressed="false" title="联网搜索"><svg class="web-search-icon" aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3.6 12h16.8M12 3a14.5 14.5 0 0 1 0 18M12 3a14.5 14.5 0 0 0 0 18"/></svg></button>
+        </div>
+        <select id="chat-model-preset" class="composer-model" aria-label="Model preset list">
+          <option value="deepseek|deepseek-v4-flash">DeepSeek v4 flash</option>
+          <option value="deepseek|deepseek-chat">DeepSeek chat</option>
+          <option value="openrouter|openai/gpt-4.1-nano">GPT-4.1-nano</option>
+          <option value="openrouter|anthropic/claude-3.5-sonnet">Claude Sonnet</option>
+          <option value="openai|gpt-4.1-nano">OpenAI GPT-4.1-nano</option>
+        </select>
+        <button class="mini-send" type="submit">➤</button>
+      </div>
+      <div id="upload-chip-row" class="upload-chip-row" aria-live="polite"></div>
+      <input id="chat-provider" type="hidden" value="deepseek" />
+      <input id="chat-model" type="hidden" value="deepseek-v4-flash" />
+    </form>
+  </aside>
+  <script src="assets/app.js?v=multi-15"></script>
+</body>
+</html>

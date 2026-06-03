@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>__SITE_TITLE__</title>
+  <link rel="stylesheet" href="assets/style.css?v=multi-15" />
+</head>
+<body class="reader-app" data-page="discovery">
+  <aside class="sidebar" data-nav></aside>
+  <main class="main-frame">
+    <header class="masthead">
+      <div>
+        <p class="eyebrow">__GENERATED__ · Notion / Obsidian synchronized workspace</p>
+        <h1>Today’s Curated Reading</h1>
+        <p class="lead">A calm private paper reader: discovery, synced notes, PDF-first AI reading, and grounded chat in one workflow.</p>
+      </div>
+      <div class="mast-actions"><a class="icon-btn" href="ai.html">Open AI Reader</a><a class="icon-btn ghost" href="data/papers.json">Metadata</a></div>
+    </header>
+    <section class="llm-find-panel" data-rank-box>
+      <form class="llm-find-form" data-rank-form>
+        <span class="sparkle">✦</span>
+        <input id="rank-query" data-rank-query placeholder="Ask AI to find papers or update library... / 例如：找和 FrenchBBQ 多语言偏见评测最相关的论文" />
+        <button type="submit" class="kbd-btn">⌘ K</button>
+      </form>
+      <div class="rank-status" data-rank-status></div>
+      <div class="rank-results" data-rank-results></div>
+    </section>
+    <section class="stats-strip" id="metrics"></section>
+    <section class="editorial-grid">
+      <article id="hero-paper" class="hero-paper"></article>
+      <aside class="today-column"><div class="section-head"><span>Daily papers</span><strong id="today-count">0</strong></div><div id="daily-list" class="daily-list"></div></aside>
+    </section>
+    <section class="continue-section"><div class="section-head"><span>Continue reading</span><a class="text-action" href="library.html">View library</a></div><div id="continue-grid" class="continue-grid"></div></section>
+  </main>
+  <script src="assets/app.js?v=multi-15"></script>
+</body>
+</html>
